@@ -1,0 +1,215 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Light fallback (unused — app forces dark) */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --success: oklch(0.78 0.18 152);
+  --success-foreground: oklch(0.145 0 0);
+  --radius: 0.625rem;
+}
+
+.dark {
+  /* Trading terminal palette — 5 colors total:
+     1. Background (deep near-black)
+     2. Foreground (bright off-white)
+     3. Card / elevated surface
+     4. Primary accent (electric cyan-green)
+     5. Destructive (signal red)
+     + muted gray for secondary text */
+  --background: oklch(0.16 0.01 240);
+  --foreground: oklch(0.97 0.005 240);
+  --card: oklch(0.205 0.012 240);
+  --card-foreground: oklch(0.97 0.005 240);
+  --popover: oklch(0.205 0.012 240);
+  --popover-foreground: oklch(0.97 0.005 240);
+
+  /* Electric cyan-green — terminal/buy signal */
+  --primary: oklch(0.85 0.18 165);
+  --primary-foreground: oklch(0.16 0.01 240);
+
+  --secondary: oklch(0.26 0.012 240);
+  --secondary-foreground: oklch(0.97 0.005 240);
+  --muted: oklch(0.235 0.012 240);
+  --muted-foreground: oklch(0.65 0.01 240);
+  --accent: oklch(0.28 0.015 240);
+  --accent-foreground: oklch(0.97 0.005 240);
+
+  --destructive: oklch(0.65 0.22 22);
+  --destructive-foreground: oklch(0.97 0.005 240);
+
+  --success: oklch(0.78 0.18 152);
+  --success-foreground: oklch(0.16 0.01 240);
+
+  --border: oklch(0.27 0.012 240);
+  --input: oklch(0.27 0.012 240);
+  --ring: oklch(0.85 0.18 165);
+
+  --chart-1: oklch(0.85 0.18 165);
+  --chart-2: oklch(0.65 0.22 22);
+  --chart-3: oklch(0.7 0.15 220);
+  --chart-4: oklch(0.78 0.18 70);
+  --chart-5: oklch(0.65 0.01 240);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), 'Geist Fallback', ui-sans-serif, system-ui;
+  --font-mono: var(--font-geist-mono), 'Geist Mono Fallback', ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Subtle terminal grid background */
+@layer components {
+  .terminal-grid {
+    background-image:
+      linear-gradient(to right, oklch(0.22 0.012 240 / 0.4) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.22 0.012 240 / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* RGB ripple — animated conic-gradient ring used by the RGB button */
+  .rgb-ring {
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--rgb-angle, 0deg),
+      oklch(0.85 0.18 165) 0deg,
+      oklch(0.7 0.2 220) 90deg,
+      oklch(0.75 0.22 320) 180deg,
+      oklch(0.78 0.2 50) 270deg,
+      oklch(0.85 0.18 165) 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 200ms ease;
+    pointer-events: none;
+  }
+  .rgb-button:hover .rgb-ring,
+  .rgb-button:focus-visible .rgb-ring {
+    opacity: 0.9;
+    animation: rgb-spin 4s linear infinite;
+  }
+
+  @keyframes rgb-spin {
+    to { --rgb-angle: 360deg; }
+  }
+  @property --rgb-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  /* Click ripple wave */
+  .ripple-wave {
+    position: absolute;
+    border-radius: 9999px;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0);
+    background: radial-gradient(
+      circle,
+      oklch(0.85 0.18 165 / 0.55) 0%,
+      oklch(0.7 0.2 220 / 0.4) 40%,
+      oklch(0.75 0.22 320 / 0.0) 70%
+    );
+    animation: ripple-out 700ms ease-out forwards;
+    mix-blend-mode: screen;
+  }
+
+  @keyframes ripple-out {
+    0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+  }
+
+  /* Pulse for live indicators */
+  @keyframes terminal-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 oklch(0.85 0.18 165 / 0.6); }
+    50%      { opacity: 0.8; box-shadow: 0 0 0 6px oklch(0.85 0.18 165 / 0); }
+  }
+  .terminal-pulse {
+    animation: terminal-pulse 2s ease-in-out infinite;
+  }
+
+  /* Typing dots */
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40%           { transform: translateY(-3px); opacity: 1; }
+  }
+  .dot-1 { animation: dot-bounce 1.2s infinite ease-in-out; }
+  .dot-2 { animation: dot-bounce 1.2s infinite ease-in-out 0.15s; }
+  .dot-3 { animation: dot-bounce 1.2s infinite ease-in-out 0.3s; }
+}
+
+/* Scrollbar — minimal terminal style */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: oklch(0.27 0.012 240);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.35 0.012 240);
+}
