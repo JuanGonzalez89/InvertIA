@@ -3,34 +3,46 @@ import { PageHeader } from "@/components/dashboard/page-header"
 import { PortfolioHoldings } from "@/components/dashboard/portfolio-holdings"
 import { LiquidityCard } from "@/components/dashboard/liquidity-card"
 import { ImportPortfolio } from "@/components/dashboard/import-portfolio"
+import { getCurrentUser } from "@/lib/auth/get-current-user"
+import { getPortfolio } from "@/lib/services/portfolio.service"
+import { redirect } from "next/navigation"
 
-const ALLOCATION = [
-  { label: "Acciones", value: "$ 1.525.000", pct: 54.9, color: "bg-primary" },
-  { label: "Bonos", value: "$ 1.494.000", pct: 53.7, color: "bg-chart-4" },
-  { label: "CEDEARs", value: "$ 711.200", pct: 25.6, color: "bg-chart-3" },
-  { label: "ETFs", value: "$ 1.246.000", pct: 44.8, color: "bg-secondary" },
-]
+export default async function CarteraPage() {
+  const user = await getCurrentUser()
 
-const STATS = [
-  { label: "Valor cartera", value: "$ 2.780.000", icon: Briefcase },
-  { label: "Total invertido", value: "$ 2.450.000", icon: Coins },
-  { label: "Ganancia", value: "+ $ 330.000", icon: TrendingUp, accent: true },
-  { label: "Rendimiento", value: "+13,46%", icon: PieChart, accent: true },
-]
+  if (!user) {
+    redirect("/sign-in")
+  }
 
-export default function CarteraPage() {
+  // Ahora sacamos los datos reales desde la BD
+  const portfolio = await getPortfolio(user.id)
+
+  const ALLOCATION = [
+    { label: "Acciones", value: "$ 0", pct: 0, color: "bg-primary" },
+    { label: "Bonos", value: "$ 0", pct: 0, color: "bg-chart-4" },
+    { label: "CEDEARs", value: "$ 0", pct: 0, color: "bg-chart-3" },
+    { label: "ETFs", value: "$ 0", pct: 0, color: "bg-secondary" },
+  ] // TODO: Dynamic map en Fase 4
+
+  const STATS = [
+    { label: "Valor cartera", value: `$ ${portfolio.totalCurrentValue.toLocaleString('es-AR')}`, icon: Briefcase },
+    { label: "Total invertido", value: `$ ${portfolio.totalInvested.toLocaleString('es-AR')}`, icon: Coins },
+    { label: "Ganancia/Pérdida", value: `$ ${portfolio.totalGainLoss.toLocaleString('es-AR')}`, icon: TrendingUp, accent: true },
+    { label: "Rendimiento", value: `${portfolio.gainLossPercent.toFixed(2)}%`, icon: PieChart, accent: true },
+  ]
+
   return (
     <>
       <PageHeader
         icon={Briefcase}
         eyebrow="Mi cartera"
-        title="Tu cartera de inversión"
-        description="Visualizá tus activos, distribución por tipo de instrumento y rendimiento detallado."
+        title={`Panel de ${user.name.split(' ')[0]}`}
+        description="Visualizá tus activos reales guardados en base de datos."
         meta={
           <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-primary terminal-pulse" aria-hidden />
             <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              6 activos · ARS
+              {portfolio.assets.length} activos · {user.baseCurrency}
             </span>
           </div>
         }

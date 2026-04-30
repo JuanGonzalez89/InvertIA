@@ -1,11 +1,38 @@
+'use client';
+
 import { Bot, Circle, Sparkles } from "lucide-react"
 import { ChatMessage, ToolCallStream } from "./chat-message"
 import { ChatInput } from "./chat-input"
 import { ToolCallPrice } from "./tool-calls/tool-call-price"
 import { ToolCallContext } from "./tool-calls/tool-call-context"
 import { ToolCallExecution } from "./tool-calls/tool-call-execution"
+import { useState, useEffect, useRef } from "react";
+import { useChat } from '@ai-sdk/react'
 
 export function ChatPanel() {
+  const { messages, sendMessage } = useChat();
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    sendMessage({ role: 'user', content: input });
+    setInput('');
+  }
+
+  const append = (message: any) => {
+    sendMessage(message);
+  }
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   return (
     <section
       id="chat"
@@ -40,46 +67,22 @@ export function ChatPanel() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col gap-4 px-4 py-4">
-          <ChatMessage role="assistant">
-            Detecté movimientos relevantes en tu cartera. <span className="font-mono text-primary">NVDA</span> subió un{" "}
-            <span className="text-primary">4,8%</span> y <span className="font-mono text-destructive">VIST</span> bajó un{" "}
-            <span className="text-destructive">1,3%</span>. ¿Querés que analice tu cartera?
-          </ChatMessage>
+          {messages.length === 0 && (
+             <ChatMessage role="assistant">
+              ¡Hola! Soy tu IA de InvertIA. ¿En qué te puedo ayudar hoy?
+             </ChatMessage>
+          )}
 
-          <ChatMessage role="user">
-            ¿Cómo ves a YPF hoy? ¿Me alcanza para comprar?
-          </ChatMessage>
-
-          <ToolCallStream>
-            <ToolCallPrice ticker="YPF" price="$ 30.500" loading={false} />
-            <ToolCallContext
-              title="Buscando contexto vía MCP..."
-              detail="Noticias recientes indican balances positivos en Vaca Muerta. Tenés $420.000 de liquidez, es viable."
-              defaultOpen={false}
-            />
-          </ToolCallStream>
-
-          <ChatMessage role="assistant">
-            YPF cotiza a <span className="text-primary">$ 30.500</span>. Producción récord en Vaca Muerta y guidance positivo
-            para Q4. Con <span className="text-primary">$ 420.000</span> de liquidez podés comprar hasta{" "}
-            <span className="text-primary">13 acciones</span>.
-          </ChatMessage>
-
-          <ChatMessage role="user">
-            Comprá 10 acciones por favor.
-          </ChatMessage>
-
-          <ToolCallStream>
-            <ToolCallExecution cashDelta="− $ 305.000" positionDelta="+ 10 YPF" />
-          </ToolCallStream>
-
-          <ChatMessage role="assistant">
-            Listo. Liquidez actual: <span className="text-primary">$ 115.000</span>.
-          </ChatMessage>
+          {messages.map((m) => (
+            <ChatMessage key={m.id} role={m.role as "user" | "assistant"}>
+               {m.content}
+            </ChatMessage>
+          ))}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <ChatInput />
+      <ChatInput input={input} handleInputChange={handleInputChange} handleSubmit={handleSubmit} append={append} />
     </section>
   )
 }

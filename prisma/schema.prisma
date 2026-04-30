@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --------------------------------------
+// ENUMS
+// --------------------------------------
+
+enum InvestorType {
+  CONSERVADOR
+  MODERADO
+  AGRESIVO
+}
+
+enum BaseCurrency {
+  ARS
+  USD
+}
+
+enum AssetType {
+  STOCK
+  CEDEAR
+  BOND
+  ETF
+  CRYPTO
+}
+
+enum Market {
+  BCBA
+  NASDAQ
+  NYSE
+  CRYPTO
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DEPOSIT
+  WITHDRAW
+}
+
+enum TransactionSource {
+  MANUAL
+  CSV
+  DEMO
+}
+
+
+// --------------------------------------
+// MODELS
+// --------------------------------------
+
+model User {
+  id             String       @id @default(cuid())
+  externalAuthId String       @unique
+  name           String
+  email          String       @unique
+  avatarUrl      String?
+  investorType   InvestorType @default(MODERADO)
+  baseCurrency   BaseCurrency @default(ARS)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  positions    Position[]
+  transactions Transaction[]
+  cashBalances CashBalance[]
+
+  @@map("users")
+}
+
+model Asset {
+  id               String  @id @default(cuid())
+  symbol           String  @unique
+  name             String
+  type             AssetType
+  market           Market
+  currency         BaseCurrency
+  yahooSymbol      String?
+  cedearRatio      String?
+  underlyingSymbol String?
+
+  positions    Position[]
+  transactions Transaction[]
+
+  @@map("assets")
+}
+
+model Position {
+  id        String   @id @default(cuid())
+  userId    String
+  assetId   String
+  quantity  Float
+  avgPrice  Float
+  currency  BaseCurrency
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+  @@map("positions")
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  userId    String
+  assetId   String?
+  type      TransactionType
+  quantity  Float?
+  price     Float?
+  total     Float
+  currency  BaseCurrency
+  date      DateTime
+  source    TransactionSource @default(MANUAL)
+  notes     String?
+  createdAt DateTime          @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@map("transactions")
+}
+
+model CashBalance {
+  id        String       @id @default(cuid())
+  userId    String
+  currency  BaseCurrency
+  amount    Float
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, currency])
+  @@map("cash_balances")
+}

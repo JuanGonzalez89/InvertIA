@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { UserButton, SignInButton, useAuth } from "@clerk/nextjs"
 
 const NAV = [
   { label: "Inicio", href: "/" },
@@ -23,6 +24,7 @@ function isActive(pathname: string, href: string) {
 
 export function AppHeader() {
   const pathname = usePathname()
+  const { userId } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
@@ -95,18 +97,13 @@ export function AppHeader() {
             />
           </Button>
 
-          <Link
-            href="/perfil"
-            className="flex items-center gap-2 rounded-full border border-border bg-card pl-1 pr-3 py-1 transition-colors hover:border-primary/40"
-            aria-label="Perfil de Juan Pablo"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 font-mono text-xs font-semibold text-primary">
-              JP
-            </span>
-            <span className="hidden sm:inline text-sm font-medium text-foreground">
-              Juan Pablo
-            </span>
-          </Link>
+          {userId ? (
+            <UserButton />
+          ) : (
+            <Button variant="default" asChild className="h-8">
+              <SignInButton mode="modal">Iniciar Sesión</SignInButton>
+            </Button>
+          )}
 
           {/* Mobile menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
