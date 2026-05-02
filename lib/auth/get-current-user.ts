@@ -15,6 +15,8 @@ type AppUser = {
   cbu?: string | null;
 };
 
+export type DbUser = Awaited<ReturnType<typeof syncCurrentUserWithDatabase>>;
+
 function buildFallbackUser(user: Awaited<ReturnType<typeof currentUser>>): AppUser {
   const name = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Usuario InvertIA";
   const email = user?.emailAddresses[0]?.emailAddress || `${user?.id ?? "clerk"}@clerk.local`;
@@ -43,46 +45,51 @@ export const getCurrentUser = async () => {
   const fallbackUser = buildFallbackUser(user);
 
   try {
-    // Camino principal: ya existe vinculado por externalAuthId
-    const byExternalId = await db.user.findUnique({
-      where: {
-        externalAuthId: user.id,
-      },
-    });
-
-    if (byExternalId) {
-      return byExternalId;
-    }
-
-    // Caso de migracion: existe por email pero sin el externalAuthId actual
-    const byEmail = await db.user.findUnique({
-      where: {
-        email: fallbackUser.email,
-      },
-    });
-
-    if (byEmail) {
-      return await db.user.update({
-        where: { id: byEmail.id },
-        data: {
-          externalAuthId: user.id,
-          name: fallbackUser.name,
-          avatarUrl: user.imageUrl,
-        },
-      });
-    }
-
-    // Alta inicial del usuario
-    return await db.user.create({
-      data: {
-        externalAuthId: user.id,
-        name: fallbackUser.name,
-        email: fallbackUser.email,
-        avatarUrl: user.imageUrl,
-      },
-    });
+    return await syncCurrentUserWithDatabase();
   } catch (error) {
     console.error("Error al obtener o sincronizar usuario con Prisma:", error);
     return fallbackUser;
   }
 };
+
+export async function syncCurrentUserWithDatabase() {
+  const user = await currentUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const fallbackUser = buildFallbackUser(user);
+
+  const byExternalId = await db.user.findUnique({
+    where: { externalAuthId: user.id },
+  });
+
+  if (byExternalId) {
+    return byExternalId;
+  }
+
+  const byEmail = await db.user.findUnique({
+    where: { email: fallbackUser.email },
+  });
+
+  if (byEmail) {
+    return await db.user.update({
+      where: { id: byEmail.id },
+      data: {
+        externalAuthId: user.id,
+        name: fallbackUser.name,
+        avatarUrl: user.imageUrl,
+      },
+    });
+  }
+
+  return await db.user.create({
+    data: {
+      externalAuthId: user.id,
+      name: fallbackUser.name,
+      email: fallbackUser.email,
+      avatarUrl: user.imageUrl,
+    },
+  });
+}

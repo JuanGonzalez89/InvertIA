@@ -1,14 +1,15 @@
+import Link from "next/link"
 import { ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface LiquidityCardProps {
-  liquidityARS?: number
-  totalCurrentValue?: number
+  liquidityARS: number
+  totalCurrentValue: number
 }
 
 export function LiquidityCard({
-  liquidityARS = 420_000,
-  totalCurrentValue = 2_780_000,
+  liquidityARS,
+  totalCurrentValue,
 }: LiquidityCardProps) {
   const pct = totalCurrentValue > 0 ? (liquidityARS / totalCurrentValue) * 100 : 0
 
@@ -49,28 +50,23 @@ export function LiquidityCard({
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <Button
-          size="sm"
-          className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <ArrowDownToLine className="h-3.5 w-3.5" />
-          <span className="text-xs font-medium">Ingresar</span>
+        <Button asChild size="sm" className="h-9 bg-primary text-primary-foreground hover:bg-primary/90">
+          <Link href="/movimientos#depositos">
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Ingresar</span>
+          </Link>
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 border-border bg-transparent hover:bg-secondary"
-        >
-          <ArrowUpFromLine className="h-3.5 w-3.5" />
-          <span className="text-xs font-medium">Retirar</span>
+        <Button asChild size="sm" variant="outline" className="h-9 border-border bg-transparent hover:bg-secondary">
+          <Link href="/movimientos#retiros">
+            <ArrowUpFromLine className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Retirar</span>
+          </Link>
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 border-border bg-transparent hover:bg-secondary"
-        >
-          <ShoppingCart className="h-3.5 w-3.5" />
-          <span className="text-xs font-medium">Comprar</span>
+        <Button asChild size="sm" variant="outline" className="h-9 border-border bg-transparent hover:bg-secondary">
+          <Link href="/mercado">
+            <ShoppingCart className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Comprar</span>
+          </Link>
         </Button>
       </div>
     </section>

@@ -1,12 +1,13 @@
 "use client"
 
-import { Bell, Menu, Search, Sparkles } from "lucide-react"
+import { Bell, Menu, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { UserButton, SignInButton, useAuth } from "@clerk/nextjs"
+import { MarketSearch } from "@/components/dashboard/market-search"
 
 const NAV = [
   { label: "Inicio", href: "/" },
@@ -45,20 +46,8 @@ export function AppHeader() {
           </div>
         </Link>
 
-        {/* Search */}
         <div className="hidden md:flex flex-1 max-w-md">
-          <label className="relative w-full">
-            <span className="sr-only">Buscar acciones, CEDEARs o bonos</span>
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              type="search"
-              placeholder="Buscar AAPL, NVDA, GGAL..."
-              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
+          <MarketSearch />
         </div>
 
         {/* Nav (desktop) */}

@@ -201,6 +201,15 @@
   .dot-1 { animation: dot-bounce 1.2s infinite ease-in-out; }
   .dot-2 { animation: dot-bounce 1.2s infinite ease-in-out 0.15s; }
   .dot-3 { animation: dot-bounce 1.2s infinite ease-in-out 0.3s; }
+
+  @keyframes ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .ticker-marquee-track {
+    animation: ticker-scroll 28s linear infinite;
+  }
 }
 
 /* Scrollbar — minimal terminal style */

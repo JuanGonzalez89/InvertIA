@@ -11,21 +11,6 @@ interface MarketStock {
   spark: number[]
 }
 
-const STOCKS: MarketStock[] = [
-  { ticker: "AAPL", name: "Apple", price: "US$ 232,40", delta: "+1,2%", positive: true, spark: [228, 229, 230, 229.5, 230.5, 231, 231.5, 232.4] },
-  { ticker: "MSFT", name: "Microsoft", price: "US$ 418,10", delta: "+0,8%", positive: true, spark: [414, 415, 416, 415.5, 416.5, 417, 417.5, 418.1] },
-  { ticker: "NVDA", name: "NVIDIA", price: "US$ 142,30", delta: "+4,8%", positive: true, spark: [135, 136, 138, 139, 140, 141, 141.5, 142.3] },
-  { ticker: "GOOGL", name: "Alphabet", price: "US$ 178,90", delta: "+0,5%", positive: true, spark: [177, 177.5, 178, 177.8, 178.2, 178.5, 178.7, 178.9] },
-  { ticker: "AMZN", name: "Amazon", price: "US$ 198,40", delta: "-0,3%", positive: false, spark: [200, 199.5, 199, 198.8, 199, 198.6, 198.5, 198.4] },
-  { ticker: "META", name: "Meta", price: "US$ 562,10", delta: "+2,1%", positive: true, spark: [550, 552, 554, 556, 558, 560, 561, 562.1] },
-  { ticker: "TSLA", name: "Tesla", price: "US$ 248,60", delta: "-1,8%", positive: false, spark: [255, 254, 253, 252, 251, 250, 249, 248.6] },
-  { ticker: "MELI", name: "MercadoLibre", price: "US$ 1.890", delta: "+1,5%", positive: true, spark: [1860, 1865, 1870, 1875, 1880, 1885, 1888, 1890] },
-  { ticker: "VIST", name: "Vista Energy", price: "US$ 52,80", delta: "-1,3%", positive: false, spark: [54, 53.5, 53.2, 53, 52.8, 52.5, 52.7, 52.8] },
-  { ticker: "GGAL", name: "Galicia", price: "US$ 58,20", delta: "+3,2%", positive: true, spark: [56, 56.5, 57, 57.3, 57.6, 57.9, 58.1, 58.2] },
-  { ticker: "JPM", name: "JPMorgan", price: "US$ 234,80", delta: "+0,6%", positive: true, spark: [232, 233, 233.5, 233.8, 234, 234.3, 234.6, 234.8] },
-  { ticker: "AMD", name: "AMD", price: "US$ 162,40", delta: "+2,8%", positive: true, spark: [157, 158, 159, 160, 161, 161.5, 162, 162.4] },
-]
-
 function buildSparkline(price: number, changePercent: number) {
   const previous = changePercent === -100 ? price : price / (1 + changePercent / 100)
 
@@ -35,7 +20,7 @@ function buildSparkline(price: number, changePercent: number) {
   })
 }
 
-export async function MarketStocks() {
+export async function MarketStocks({ query }: { query?: string } = {}) {
   const quotes = await getMarketQuotes()
 
   const stocks: MarketStock[] =
@@ -51,7 +36,14 @@ export async function MarketStocks() {
           positive: quote.changePercent >= 0,
           spark: buildSparkline(quote.price, quote.changePercent),
         }))
-      : STOCKS
+      : []
+
+  const filteredStocks = query?.trim()
+    ? stocks.filter((stock) => {
+        const needle = query.trim().toLowerCase()
+        return [stock.ticker, stock.name].some((value) => value.toLowerCase().includes(needle))
+      })
+    : stocks
 
   return (
     <section
@@ -72,7 +64,11 @@ export async function MarketStocks() {
       </div>
 
       <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-3 lg:grid-cols-4">
-        {stocks.map((s) => (
+        {filteredStocks.length === 0 ? (
+          <div className="col-span-full px-5 py-10 text-sm text-muted-foreground">
+            No encontramos activos para esta búsqueda.
+          </div>
+        ) : filteredStocks.map((s) => (
           <article
             key={s.ticker}
             className="group flex flex-col gap-2 bg-card p-4 transition-colors hover:bg-secondary/40"

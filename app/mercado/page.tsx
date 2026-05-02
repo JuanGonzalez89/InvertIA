@@ -1,41 +1,12 @@
 import { ArrowDownRight, ArrowUpRight, LineChart, Activity } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { MarketStocks } from "@/components/dashboard/market-stocks"
+import { MarketTickerStrip } from "@/components/dashboard/market-ticker-strip"
 import { Sparkline } from "@/components/dashboard/sparkline"
 import { getBCBAMarketStatus } from "@/lib/market/market-status"
+import { getMarketQuotes } from "@/lib/services/market.service"
 
 export const dynamic = "force-dynamic"
-
-const INDICES = [
-  {
-    name: "S&P 500",
-    value: "5.842,30",
-    delta: "+0,72%",
-    positive: true,
-    spark: [5800, 5810, 5815, 5820, 5825, 5830, 5838, 5842],
-  },
-  {
-    name: "NASDAQ",
-    value: "18.920,15",
-    delta: "+1,15%",
-    positive: true,
-    spark: [18700, 18750, 18780, 18800, 18840, 18870, 18900, 18920],
-  },
-  {
-    name: "MERVAL",
-    value: "1.985.420",
-    delta: "+2,40%",
-    positive: true,
-    spark: [1940000, 1950000, 1955000, 1960000, 1965000, 1975000, 1980000, 1985420],
-  },
-  {
-    name: "Dow Jones",
-    value: "42.180,90",
-    delta: "-0,18%",
-    positive: false,
-    spark: [42250, 42230, 42210, 42200, 42190, 42185, 42180, 42180.9],
-  },
-]
 
 const SECTORS = [
   { name: "Tecnología", delta: "+2,1%", positive: true },
@@ -46,8 +17,37 @@ const SECTORS = [
   { name: "Industriales", delta: "-0,8%", positive: false },
 ]
 
-export default function MercadoPage() {
+function buildSparkline(price: number, changePercent: number) {
+  const previous = changePercent === -100 ? price : price / (1 + changePercent / 100)
+
+  return Array.from({ length: 8 }, (_, index) => {
+    const progress = index / 7
+    return previous + (price - previous) * progress
+  })
+}
+
+export default async function MercadoPage({ searchParams }: { searchParams?: { query?: string } }) {
   const marketStatus = getBCBAMarketStatus()
+  const query = searchParams?.query ?? ""
+  const indexQuotes = await getMarketQuotes(["^GSPC", "^IXIC", "^DJI", "^MERV"])
+
+  const INDICES = indexQuotes.map((quote) => ({
+    name:
+      quote.ticker === "^GSPC"
+        ? "S&P 500"
+        : quote.ticker === "^IXIC"
+          ? "NASDAQ"
+          : quote.ticker === "^DJI"
+            ? "Dow Jones"
+            : "MERVAL",
+    value: quote.price.toLocaleString("es-AR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
+    delta: `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`,
+    positive: quote.changePercent >= 0,
+    spark: buildSparkline(quote.price, quote.changePercent),
+  }))
 
   return (
     <>
@@ -81,7 +81,11 @@ export default function MercadoPage() {
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {INDICES.map((idx) => (
+          {INDICES.length === 0 ? (
+            <div className="col-span-full rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+              No pudimos cargar índices globales.
+            </div>
+          ) : INDICES.map((idx) => (
             <article
               key={idx.name}
               className="rounded-xl border border-border bg-card p-4"
@@ -118,7 +122,9 @@ export default function MercadoPage() {
         </div>
       </section>
 
-      <MarketStocks />
+      <MarketStocks query={query} />
+
+      <MarketTickerStrip />
 
       {/* Sectors */}
       <section

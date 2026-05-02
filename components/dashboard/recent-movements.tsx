@@ -12,59 +12,6 @@ interface Movement {
   status: "completado" | "pendiente" | "cancelado"
 }
 
-const MOVEMENTS: Movement[] = [
-  {
-    type: "compra",
-    ticker: "NVDA",
-    name: "NVIDIA Corp.",
-    qty: 2,
-    unitPrice: "$ 38.500",
-    total: "$ 77.000",
-    date: "24/04/2026",
-    status: "completado",
-  },
-  {
-    type: "venta",
-    ticker: "VIST",
-    name: "Vista Energy",
-    qty: 5,
-    unitPrice: "$ 52.800",
-    total: "$ 264.000",
-    date: "23/04/2026",
-    status: "completado",
-  },
-  {
-    type: "compra",
-    ticker: "YPF",
-    name: "YPF S.A.",
-    qty: 10,
-    unitPrice: "$ 30.500",
-    total: "$ 305.000",
-    date: "22/04/2026",
-    status: "completado",
-  },
-  {
-    type: "compra",
-    ticker: "TX26",
-    name: "Bono Tesoro",
-    qty: 200,
-    unitPrice: "$ 1.245",
-    total: "$ 249.000",
-    date: "21/04/2026",
-    status: "pendiente",
-  },
-  {
-    type: "compra",
-    ticker: "AAPL",
-    name: "Apple Inc.",
-    qty: 3,
-    unitPrice: "$ 31.150",
-    total: "$ 93.450",
-    date: "20/04/2026",
-    status: "completado",
-  },
-]
-
 const STATUS_STYLES: Record<Movement["status"], string> = {
   completado: "bg-primary/10 text-primary",
   pendiente: "bg-chart-4/15 text-chart-4",
@@ -94,7 +41,7 @@ function toUiMovement(order: Order): Movement {
 }
 
 export function RecentMovements({ orders }: RecentMovementsProps) {
-  const movements = orders?.length ? orders.map(toUiMovement) : MOVEMENTS
+  const movements = orders?.length ? orders.map(toUiMovement) : []
 
   return (
     <section
@@ -118,7 +65,11 @@ export function RecentMovements({ orders }: RecentMovementsProps) {
       </div>
 
       <ul className="divide-y divide-border">
-        {movements.map((m, i) => (
+        {movements.length === 0 ? (
+          <li className="px-5 py-10 text-center text-sm text-muted-foreground">
+            No hay movimientos para mostrar con este filtro.
+          </li>
+        ) : movements.map((m, i) => (
           <li
             key={`${m.ticker}-${i}`}
             className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-secondary/40"

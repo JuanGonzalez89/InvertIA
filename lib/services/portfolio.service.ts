@@ -7,6 +7,7 @@
 
 import { db } from '@/lib/prisma';
 import type { Portfolio, Order, AgentContext } from '@/lib/types/portfolio';
+import { getMarketQuote } from './market.service';
 
 // No demo mock data here — production should read from DB. Keep implementation minimal.
 
@@ -28,16 +29,21 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       include: { asset: true }
     });
 
+    const quoteEntries = await Promise.all(
+      positions.map(async (pos: any) => {
+        const quote = await getMarketQuote(pos.asset.yahooSymbol || pos.asset.symbol);
+        return [pos.id, quote] as const;
+      })
+    );
+
+    const quoteMap = new Map(quoteEntries);
     let totalInvested = 0;
     let totalCurrentValue = 0;
 
     const mappedAssets = positions.map((pos: any) => {
       const invested = pos.quantity * pos.avgPrice;
-      
-      // Para simplificar la demo en la Fase 3, asumimos que el precio actual
-      // es un pseudo valor basado en el tipo de activo (mock factor), o su avgPrice
-      // En la Fase 4 el MCP inyectará los precios reales de mercado
-      const currentPrice = pos.avgPrice * (1 + (Math.random() * 0.1 - 0.03)); // +/- algo aleatorio de demo
+      const quote = quoteMap.get(pos.id);
+      const currentPrice = quote?.price ?? pos.avgPrice;
       const currentValue = pos.quantity * currentPrice;
 
       totalInvested += invested;
@@ -50,8 +56,11 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
         type: pos.asset.type as any,
         quantity: pos.quantity,
         avgBuyPrice: pos.avgPrice,
-        currentPrice: currentPrice,
-        dailyChangePercent: ((currentPrice / pos.avgPrice) - 1) * 100
+        currentPrice,
+        dailyChangePercent:
+          quote && pos.avgPrice > 0
+            ? ((currentPrice / pos.avgPrice) - 1) * 100
+            : 0,
       };
     });
 

@@ -14,14 +14,6 @@ import {
 import { Sparkline } from "./sparkline"
 import { LiquidityCard } from "./liquidity-card"
 
-// When portfolio data is not provided, show a lightweight empty state
-const FALLBACK_TOP_MOVERS = [
-  { ticker: "NVDA", name: "NVIDIA", price: "US$ 142,30", delta: "+4,8%", positive: true },
-  { ticker: "GGAL", name: "Galicia", price: "US$ 58,20", delta: "+3,2%", positive: true },
-  { ticker: "AMD", name: "AMD", price: "US$ 162,40", delta: "+2,8%", positive: true },
-  { ticker: "TSLA", name: "Tesla", price: "US$ 248,60", delta: "-1,8%", positive: false },
-]
-
 const FALLBACK_LATEST_MOVES = [
   { type: "compra", ticker: "NVDA", total: "$ 77.000", date: "24/04" },
   { type: "venta", ticker: "VIST", total: "$ 264.000", date: "23/04" },
@@ -83,7 +75,7 @@ export function HomePreviews({
           delta: `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`,
           positive: quote.changePercent >= 0,
         }))
-      : FALLBACK_TOP_MOVERS
+      : []
 
   const latestMoves =
     latestOrders.length > 0
@@ -187,7 +179,11 @@ export function HomePreviews({
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-4">
-            {movers.map((s) => (
+            {movers.length === 0 ? (
+              <div className="col-span-full px-5 py-10 text-sm text-muted-foreground">
+                No hay top movers disponibles en este momento.
+              </div>
+            ) : movers.map((s) => (
               <article
                 key={s.ticker}
                 className="flex flex-col gap-1.5 bg-card p-4"
@@ -253,7 +249,11 @@ export function HomePreviews({
             </Link>
           </div>
           <ul className="divide-y divide-border">
-            {latestMoves.map((m, i) => (
+            {latestMoves.length === 0 ? (
+              <li className="px-5 py-10 text-center text-sm text-muted-foreground">
+                Sin movimientos todavía. Cuando importes un CSV o hagas una operación, aparecerá acá.
+              </li>
+            ) : latestMoves.map((m, i) => (
               <li
                 key={`${m.ticker}-${i}`}
                 className="flex items-center justify-between gap-3 px-5 py-3"

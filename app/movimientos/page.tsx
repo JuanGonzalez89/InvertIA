@@ -1,6 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, CircleCheck, CircleDashed, Receipt } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
-import { RecentMovements } from "@/components/dashboard/recent-movements"
+import { MovementsControls } from "@/components/dashboard/movements-controls"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { Button } from "@/components/ui/button"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
@@ -9,8 +9,6 @@ import { redirect } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 
 export const dynamic = "force-dynamic"
-
-const FILTERS = ["Todas", "Compras", "Ventas", "Pendientes", "Completadas"]
 
 export default async function MovimientosPage() {
   const { userId } = await auth()
@@ -139,30 +137,7 @@ export default async function MovimientosPage() {
         })}
       </section>
 
-      {/* Filters */}
-      <section
-        aria-label="Filtros"
-        className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3"
-      >
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          Filtrar:
-        </span>
-        {FILTERS.map((f, i) => (
-          <button
-            key={f}
-            type="button"
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              i === 0
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </section>
-
-      <RecentMovements orders={recentOrders.slice(0, 5)} />
+      <MovementsControls orders={recentOrders.slice(0, 50)} />
     </>
   )
 }

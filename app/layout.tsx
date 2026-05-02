@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AppHeader } from "@/components/dashboard/app-header"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
@@ -73,6 +74,7 @@ export default function RootLayout({
               </footer>
             </main>
           </div>
+          <Toaster richColors position="top-right" />
           {process.env.NODE_ENV === "production" && <Analytics />}
         </body>
       </html>
