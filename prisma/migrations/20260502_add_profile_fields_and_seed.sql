@@ -11,22 +11,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 -- Replace EMAIL_PLACEHOLDER with the real email to seed (e.g. juanignaciogonzalez.ca@gmail.com)
 -- Run these statements in your production DB (psql / Supabase SQL editor)
 
--- 1) Insert a test user (will be linked by email by getCurrentUser() on first login)
-INSERT INTO users (id, "externalAuthId", name, email, "avatarUrl", "investorType", "baseCurrency", "createdAt", "updatedAt")
-VALUES (
-  'user_seed_juan',
-  'seed_juan_external',
-  'Juan Ignacio (seed)',
-  'EMAIL_PLACEHOLDER',
-  NULL,
-  'MODERADO',
-  'ARS',
-  now(),
-  now()
-)
-ON CONFLICT (email) DO NOTHING;
-
--- 2) Insert sample assets
+-- 1) Insert sample assets first so FK targets exist
 INSERT INTO assets (id, symbol, name, type, market, currency, "yahooSymbol", "cedearRatio", "underlyingSymbol")
 VALUES
   ('asset_nvda', 'NVDA', 'NVIDIA Corporation', 'STOCK', 'NASDAQ', 'USD', 'NVDA', NULL, NULL),
@@ -35,25 +20,52 @@ VALUES
   ('asset_ypf', 'YPF', 'YPF S.A.', 'STOCK', 'BCBA', 'ARS', NULL, NULL, NULL)
 ON CONFLICT (symbol) DO NOTHING;
 
--- 3) Cash balance for the seeded user
-INSERT INTO cash_balances (id, "userId", currency, amount, "createdAt", "updatedAt")
-VALUES ('cash_seed_1','user_seed_juan','ARS', 420000, now(), now())
-ON CONFLICT ("userId", currency) DO UPDATE SET amount = EXCLUDED.amount, "updatedAt" = now();
+DO $$
+DECLARE
+  seed_user_id TEXT;
+BEGIN
+  -- 1) Insert or update a test user and keep its real id for the rest of the seed
+  INSERT INTO users (id, "externalAuthId", name, email, "avatarUrl", "investorType", "baseCurrency", "createdAt", "updatedAt")
+  VALUES (
+    'user_seed_juan',
+    'seed_juan_external',
+    'Juan Ignacio (seed)',
+    'EMAIL_PLACEHOLDER',
+    NULL,
+    'MODERADO',
+    'ARS',
+    now(),
+    now()
+  )
+  ON CONFLICT (email) DO UPDATE SET
+    "externalAuthId" = EXCLUDED."externalAuthId",
+    name = EXCLUDED.name,
+    "avatarUrl" = EXCLUDED."avatarUrl",
+    "investorType" = EXCLUDED."investorType",
+    "baseCurrency" = EXCLUDED."baseCurrency",
+    "updatedAt" = now()
+  RETURNING id INTO seed_user_id;
 
--- 4) Positions (holdings)
-INSERT INTO positions (id, "userId", "assetId", quantity, "avgPrice", currency, "createdAt", "updatedAt")
-VALUES
-  ('pos_nvda_1','user_seed_juan','asset_nvda', 12, 32000, 'ARS', now(), now()),
-  ('pos_vist_1','user_seed_juan','asset_vist', 50, 8200, 'ARS', now(), now()),
-  ('pos_tx26_1','user_seed_juan','asset_tx26', 1000, 950, 'ARS', now(), now())
-ON CONFLICT ("userId", "assetId") DO UPDATE SET quantity = EXCLUDED.quantity, "avgPrice" = EXCLUDED."avgPrice", "updatedAt" = now();
+  -- 2) Cash balance for the seeded user
+  INSERT INTO cash_balances (id, "userId", currency, amount, "createdAt", "updatedAt")
+  VALUES ('cash_seed_1', seed_user_id, 'ARS', 420000, now(), now())
+  ON CONFLICT ("userId", currency) DO UPDATE SET amount = EXCLUDED.amount, "updatedAt" = now();
 
--- 5) Transactions (sample recent orders)
-INSERT INTO transactions (id, "userId", "assetId", type, quantity, price, total, currency, date, source, notes, "createdAt")
-VALUES
-  ('txn_1','user_seed_juan','asset_nvda','BUY',2,38500,77000,'ARS', now() - interval '10 days','DEMO','Seeded buy',now()),
-  ('txn_2','user_seed_juan','asset_tx26','BUY',500,950,475000,'ARS', now() - interval '14 days','DEMO','Seeded buy',now())
-ON CONFLICT (id) DO NOTHING;
+  -- 3) Positions (holdings)
+  INSERT INTO positions (id, "userId", "assetId", quantity, "avgPrice", currency, "createdAt", "updatedAt")
+  VALUES
+    ('pos_nvda_1', seed_user_id, 'asset_nvda', 12, 32000, 'ARS', now(), now()),
+    ('pos_vist_1', seed_user_id, 'asset_vist', 50, 8200, 'ARS', now(), now()),
+    ('pos_tx26_1', seed_user_id, 'asset_tx26', 1000, 950, 'ARS', now(), now())
+  ON CONFLICT ("userId", "assetId") DO UPDATE SET quantity = EXCLUDED.quantity, "avgPrice" = EXCLUDED."avgPrice", "updatedAt" = now();
+
+  -- 4) Transactions (sample recent orders)
+  INSERT INTO transactions (id, "userId", "assetId", type, quantity, price, total, currency, date, source, notes, "createdAt")
+  VALUES
+    ('txn_1', seed_user_id, 'asset_nvda', 'BUY', 2, 38500, 77000, 'ARS', now() - interval '10 days', 'DEMO', 'Seeded buy', now()),
+    ('txn_2', seed_user_id, 'asset_tx26', 'BUY', 500, 950, 475000, 'ARS', now() - interval '14 days', 'DEMO', 'Seeded buy', now())
+  ON CONFLICT (id) DO NOTHING;
+END $$;
 
 -- 6) Quick verification queries (run after applying seed):
 -- SELECT * FROM users WHERE email = 'EMAIL_PLACEHOLDER';
