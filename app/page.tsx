@@ -72,6 +72,14 @@ export default async function Page() {
             title="No pudimos cargar tu dashboard"
             description="Tu sesion esta activa, pero fallo la sincronizacion con la base de datos. Revisa DATABASE_URL en Vercel y volve a intentar."
           />
+        ) : user && (!((user as any).phone) || !((user as any).cbu)) ? (
+          <section className="rounded-xl border border-border bg-card p-6 sm:p-10">
+            <h2 className="text-lg font-semibold">Completa tu perfil</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Para continuar, completá tu teléfono y CBU/CVU.</p>
+            <div className="mt-4">
+              <a href="/perfil/editar" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">Completar perfil</a>
+            </div>
+          </section>
         ) : user && portfolio ? (
           <>
             <WelcomeBanner

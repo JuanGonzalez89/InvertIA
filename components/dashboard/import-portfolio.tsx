@@ -55,9 +55,54 @@ export function ImportPortfolio() {
 
   const handleFile = async (file?: File | null) => {
     if (!file) return
-    console.log('Selected file', file.name, file.size)
-    // TODO: subir a API para procesar
-    alert(`Archivo seleccionado: ${file.name}`)
+    const name = file.name.toLowerCase()
+    if (name.endsWith('.csv') || name.endsWith('.txt')) {
+      const text = await file.text()
+      // parse CSV simple
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+      if (lines.length === 0) return alert('CSV vacío')
+      const sep = lines[0].includes(';') ? ';' : ','
+      const headers = lines[0].split(sep).map(h => h.trim().toLowerCase())
+      const rows = lines.slice(1).map(line => {
+        const cols = line.split(sep).map(c => c.trim())
+        const obj: any = {}
+        headers.forEach((h, i) => { obj[h] = cols[i] ?? '' })
+        return obj
+      }).filter(r => Object.keys(r).length > 0)
+
+      // Normalize rows to expected shape
+      const parsed = rows.map((r: any) => ({
+        ticker: (r.ticker || r.symbol || r.codigo || '').toString().toUpperCase(),
+        quantity: parseFloat((r.quantity || r.qty || r.cantidad || r.cant) ?? '0') || 0,
+        price: parseFloat((r.price || r.precio || r.avgPrice || r.valor) ?? '0') || 0,
+        type: (r.type || r.tipo || 'BUY').toString().toUpperCase(),
+      })).filter((r: any) => r.ticker && r.quantity)
+
+      if (parsed.length === 0) return alert('No se detectaron filas válidas en el CSV')
+
+      try {
+        const res = await fetch('/api/import/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: parsed }),
+        })
+
+        if (res.ok) {
+          const json = await res.json()
+          alert(`Importado ${json.processed || parsed.length} filas`) 
+        } else {
+          const txt = await res.text()
+          alert('Error importando: ' + txt)
+        }
+      } catch (err) {
+        console.error(err)
+        alert('Error al subir CSV')
+      }
+    } else if (name.endsWith('.xls') || name.endsWith('.xlsx')) {
+      alert('Importar .xlsx aún no soportado. Exportá a CSV y volvé a intentar.')
+    } else {
+      alert('Formato no soportado. Usá CSV o Google Sheets.')
+    }
   }
 
   return (

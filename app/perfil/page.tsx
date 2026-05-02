@@ -74,9 +74,9 @@ export default async function PerfilPage() {
 
   const details = [
     { icon: Mail, label: "Email", value: user.email || "Sin email" },
-    { icon: Phone, label: "Telefono", value: "No configurado" },
-    { icon: Globe, label: "Pais", value: "Argentina" },
-    { icon: CreditCard, label: "CBU/CVU", value: "No configurado" },
+    { icon: Phone, label: "Telefono", value: (user as any).phone || "No configurado" },
+    { icon: Globe, label: "Pais", value: (user as any).country || "No configurado" },
+    { icon: CreditCard, label: "CBU/CVU", value: (user as any).cbu || "No configurado" },
   ]
 
   return (

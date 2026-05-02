@@ -40,6 +40,11 @@ export default async function CarteraPage() {
     )
   }
 
+  // Si el usuario no completó el perfil, redirigimos al onboarding/editar perfil
+  if (!(user as any).phone || !(user as any).cbu) {
+    redirect('/perfil/editar')
+  }
+
   // Ahora sacamos los datos reales desde la BD
   const portfolio = await getPortfolio(user.id)
 

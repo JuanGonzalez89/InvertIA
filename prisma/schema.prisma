@@ -61,6 +61,9 @@ model User {
   id             String       @id @default(cuid())
   externalAuthId String       @unique
   name           String
+  phone          String?      
+  country        String?
+  cbu            String?
   email          String       @unique
   avatarUrl      String?
   investorType   InvestorType @default(MODERADO)

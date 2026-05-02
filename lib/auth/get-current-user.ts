@@ -10,6 +10,9 @@ type AppUser = {
   avatarUrl: string | null;
   investorType: InvestorType;
   baseCurrency: BaseCurrency;
+  phone?: string | null;
+  country?: string | null;
+  cbu?: string | null;
 };
 
 function buildFallbackUser(user: Awaited<ReturnType<typeof currentUser>>): AppUser {
@@ -24,6 +27,9 @@ function buildFallbackUser(user: Awaited<ReturnType<typeof currentUser>>): AppUs
     avatarUrl: user?.imageUrl ?? null,
     investorType: "MODERADO",
     baseCurrency: "ARS",
+    phone: null,
+    country: null,
+    cbu: null,
   };
 }
 
