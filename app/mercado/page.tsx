@@ -1,10 +1,21 @@
-import { ArrowDownRight, ArrowUpRight, LineChart, Activity } from "lucide-react"
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  LineChart,
+} from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { MarketStocks } from "@/components/dashboard/market-stocks"
 import { MarketTickerStrip } from "@/components/dashboard/market-ticker-strip"
 import { Sparkline } from "@/components/dashboard/sparkline"
 import { getBCBAMarketStatus } from "@/lib/market/market-status"
 import { getMarketQuotes } from "@/lib/services/market.service"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Activity } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -50,113 +61,52 @@ export default async function MercadoPage({ searchParams }: { searchParams?: { q
   }))
 
   return (
-    <>
+    <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
       <PageHeader
-        icon={LineChart}
-        eyebrow="Mercado"
-        title="Mercado en vivo"
-        description="Índices globales, sectores y acciones destacadas con cotizaciones en tiempo real."
-        meta={
-          <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
-            <Activity className="h-3.5 w-3.5 text-primary" aria-hidden />
-            <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              {marketStatus.label}
-            </span>
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? "bg-primary terminal-pulse" : "bg-muted-foreground/60"}`}
-              aria-hidden
-            />
-          </div>
-        }
+        icon={Activity}
+        eyebrow="Análisis"
+        title="Mercado"
+        description={marketStatus.label}
       />
-
-      {/* Indices */}
-      <section aria-labelledby="indices-title">
-        <div className="mb-3 flex items-center justify-between">
-          <h2
-            id="indices-title"
-            className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground"
-          >
-            Índices globales
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {INDICES.length === 0 ? (
-            <div className="col-span-full rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
-              No pudimos cargar índices globales.
-            </div>
-          ) : INDICES.map((idx) => (
-            <article
-              key={idx.name}
-              className="rounded-xl border border-border bg-card p-4"
-            >
+      <div className="border-y bg-background/50">
+        <MarketTickerStrip />
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {INDICES.map((indice) => (
+          <Card key={indice.name}>
+            <CardContent>
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {idx.name}
+                    {indice.name}
                   </div>
                   <div className="mt-1 font-mono text-xl font-semibold tabular-nums tracking-tight text-foreground">
-                    {idx.value}
+                    {indice.value}
                   </div>
                 </div>
                 <span
                   className={`inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] tabular-nums ${
-                    idx.positive
+                    indice.positive
                       ? "bg-primary/10 text-primary"
                       : "bg-destructive/15 text-destructive"
                   }`}
                 >
-                  {idx.positive ? (
+                  {indice.positive ? (
                     <ArrowUpRight className="h-2.5 w-2.5" aria-hidden />
                   ) : (
                     <ArrowDownRight className="h-2.5 w-2.5" aria-hidden />
                   )}
-                  {idx.delta}
+                  {indice.delta}
                 </span>
               </div>
               <div className="mt-3 h-10">
-                <Sparkline data={idx.spark} positive={idx.positive} className="h-full w-full" />
+                <Sparkline data={indice.spark} positive={indice.positive} className="h-full w-full" />
               </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       <MarketStocks query={query} />
-
-      <MarketTickerStrip />
-
-      {/* Sectors */}
-      <section
-        aria-labelledby="sectors-title"
-        className="rounded-xl border border-border bg-card"
-      >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 id="sectors-title" className="text-sm font-semibold text-foreground">
-            Sectores del día
-          </h2>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            Variación intradía
-          </span>
-        </div>
-        <ul className="grid grid-cols-2 gap-px bg-border md:grid-cols-3 lg:grid-cols-6">
-          {SECTORS.map((s) => (
-            <li
-              key={s.name}
-              className="flex items-center justify-between bg-card px-4 py-3"
-            >
-              <span className="text-sm text-foreground">{s.name}</span>
-              <span
-                className={`font-mono text-xs tabular-nums ${
-                  s.positive ? "text-primary" : "text-destructive"
-                }`}
-              >
-                {s.delta}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </>
+    </div>
   )
 }

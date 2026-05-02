@@ -48,7 +48,7 @@ async function fetchQuoteForSymbol(symbol: string) {
         ticker: symbol.toUpperCase(),
         name: quote.shortName ?? symbol.toUpperCase(),
         price: quote.regularMarketPrice,
-        currency: quote.currency ?? "ARS",
+        currency: candidate.endsWith(".BA") ? "ARS" : quote.currency ?? "ARS",
         changePercent: quote.regularMarketChangePercent ?? 0,
       };
 

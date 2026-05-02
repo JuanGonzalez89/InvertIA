@@ -41,8 +41,8 @@ export function HomePreviews({
   topHoldings = [],
   topMovers = [],
   latestOrders = [],
-  liquidityARS,
-  totalCurrentValue,
+  liquidityARS = 0,
+  totalCurrentValue = 0,
 }: HomePreviewsProps) {
   const holdings =
     topHoldings.length > 0
