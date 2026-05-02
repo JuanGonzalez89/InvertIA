@@ -10,16 +10,21 @@ export interface MarketQuoteSnapshot {
 }
 
 const DEFAULT_TRACKED_TICKERS = [
-  "AAPL",
-  "MSFT",
-  "NVDA",
-  "GOOGL",
-  "AMZN",
-  "META",
-  "TSLA",
-  "MELI",
-  "VIST",
-  "GGAL",
+  // CEDEARs (Acciones internacionales en ARS)
+  "AAPL.BA",    // Apple
+  "MSFT.BA",    // Microsoft
+  "NVDA.BA",    // NVIDIA
+  "GOOGL.BA",   // Google
+  "AMZN.BA",    // Amazon
+  "META.BA",    // Meta
+  "TSLA.BA",    // Tesla
+  "MELI",       // Mercado Libre (ya cotiza en BCBA, no necesita .BA)
+  
+  // Acciones BCBA locales
+  "GGAL",       // Grupo Galicia
+  "VIST",       // Vista
+  "YPF",        // YPF
+  "BMA",        // Banco Macro
 ] as const;
 
 async function fetchQuoteForSymbol(symbol: string) {

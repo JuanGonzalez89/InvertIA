@@ -14,12 +14,6 @@ import {
 import { Sparkline } from "./sparkline"
 import { LiquidityCard } from "./liquidity-card"
 
-const FALLBACK_LATEST_MOVES = [
-  { type: "compra", ticker: "NVDA", total: "$ 77.000", date: "24/04" },
-  { type: "venta", ticker: "VIST", total: "$ 264.000", date: "23/04" },
-  { type: "compra", ticker: "YPF", total: "$ 305.000", date: "22/04" },
-] as const
-
 interface HomePreviewsProps {
   topHoldings?: Asset[]
   topMovers?: MarketQuoteSnapshot[]
@@ -212,8 +206,8 @@ export function HomePreviews({
                     {s.delta}
                   </span>
                 </div>
-                <div className="font-mono text-base font-semibold tabular-nums tracking-tight text-foreground">
-                  {s.price}
+                <div className="min-w-0 font-mono text-base font-semibold tabular-nums tracking-tight text-foreground">
+                  <span className="truncate block">{s.price}</span>
                 </div>
               </article>
             ))}
