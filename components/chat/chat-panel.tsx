@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from "react";
 import { useChat } from '@ai-sdk/react'
 
 export function ChatPanel() {
-  const { messages, sendMessage } = useChat();
+  const { messages, sendMessage, error, status } = useChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -73,11 +73,22 @@ export function ChatPanel() {
              </ChatMessage>
           )}
 
+          {error && (
+            <ChatMessage role="assistant">
+              No pude responder por un problema del servidor. Verifica sesion activa y configuracion de base de datos en Vercel, luego intenta de nuevo.
+            </ChatMessage>
+          )}
+
           {messages.map((m) => (
             <ChatMessage key={m.id} role={m.role as "user" | "assistant"}>
                {m.content}
             </ChatMessage>
           ))}
+
+          {status === "submitted" || status === "streaming" ? (
+            <ChatMessage role="assistant">Estoy procesando tu consulta...</ChatMessage>
+          ) : null}
+
           <div ref={messagesEndRef} />
         </div>
       </div>

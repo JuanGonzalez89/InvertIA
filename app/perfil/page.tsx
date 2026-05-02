@@ -11,10 +11,12 @@ import {
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ProfileCard } from "@/components/dashboard/profile-card"
 import { LiquidityCard } from "@/components/dashboard/liquidity-card"
+import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { Button } from "@/components/ui/button"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getPortfolio } from "@/lib/services/portfolio.service"
 import { redirect } from "next/navigation"
+import { auth } from "@clerk/nextjs/server"
 
 export const dynamic = "force-dynamic"
 
@@ -40,10 +42,32 @@ const PREFERENCES = [
 ]
 
 export default async function PerfilPage() {
-  const user = await getCurrentUser()
+  const { userId } = await auth()
+
+  if (!userId) {
+    redirect("/sign-in")
+  }
+
+  let user = null
+
+  try {
+    user = await getCurrentUser()
+  } catch {
+    return (
+      <DataErrorState
+        title="No pudimos cargar tu perfil"
+        description="Tu sesion esta activa, pero fallo la sincronizacion con base de datos."
+      />
+    )
+  }
 
   if (!user) {
-    redirect("/sign-in")
+    return (
+      <DataErrorState
+        title="No pudimos cargar tu perfil"
+        description="Tu sesion esta activa, pero no encontramos tu usuario en base de datos."
+      />
+    )
   }
 
   const portfolio = await getPortfolio(user.id)

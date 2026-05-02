@@ -2,41 +2,56 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/prisma";
 
 export const getCurrentUser = async () => {
+  const user = await currentUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Usuario InvertIA";
+  const email = user.emailAddresses[0]?.emailAddress || `${user.id}@clerk.local`;
+
   try {
-    const user = await currentUser();
-
-    if (!user) {
-      return null;
-    }
-
-    // Buscamos si el usuario ya existe en nuestra base de datos (Prisma)
-    const existingUser = await db.user.findUnique({
+    // Camino principal: ya existe vinculado por externalAuthId
+    const byExternalId = await db.user.findUnique({
       where: {
-        externalAuthId: user.id
-      }
+        externalAuthId: user.id,
+      },
     });
 
-    if (existingUser) {
-      return existingUser;
+    if (byExternalId) {
+      return byExternalId;
     }
 
-    // Si el usuario no existe, lo insertamos en la BD de Prisma
-    const name = `${user.firstName || ""} ${user.lastName || ""}`.trim() || 'Usuario InvertIA';
-    const email = user.emailAddresses[0]?.emailAddress || '';
+    // Caso de migracion: existe por email pero sin el externalAuthId actual
+    const byEmail = await db.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
-    const newUser = await db.user.create({
+    if (byEmail) {
+      return await db.user.update({
+        where: { id: byEmail.id },
+        data: {
+          externalAuthId: user.id,
+          name,
+          avatarUrl: user.imageUrl,
+        },
+      });
+    }
+
+    // Alta inicial del usuario
+    return await db.user.create({
       data: {
         externalAuthId: user.id,
-        name: name,
-        email: email,
+        name,
+        email,
         avatarUrl: user.imageUrl,
-      }
+      },
     });
-
-    return newUser;
-
   } catch (error) {
-    console.error("Error al obtener o registrar el usuario:", error);
-    return null;
+    console.error("Error al obtener o sincronizar usuario con Prisma:", error);
+    throw new Error("USER_SYNC_FAILED");
   }
 };

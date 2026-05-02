@@ -1,20 +1,44 @@
 import { ArrowDownLeft, ArrowUpRight, CircleCheck, CircleDashed, Receipt } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { RecentMovements } from "@/components/dashboard/recent-movements"
+import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { Button } from "@/components/ui/button"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getRecentOrders } from "@/lib/services/portfolio.service"
 import { redirect } from "next/navigation"
+import { auth } from "@clerk/nextjs/server"
 
 export const dynamic = "force-dynamic"
 
 const FILTERS = ["Todas", "Compras", "Ventas", "Pendientes", "Completadas"]
 
 export default async function MovimientosPage() {
-  const user = await getCurrentUser()
+  const { userId } = await auth()
+
+  if (!userId) {
+    redirect("/sign-in")
+  }
+
+  let user = null
+
+  try {
+    user = await getCurrentUser()
+  } catch {
+    return (
+      <DataErrorState
+        title="No pudimos cargar movimientos"
+        description="Tu sesion esta activa, pero fallo la sincronizacion con base de datos."
+      />
+    )
+  }
 
   if (!user) {
-    redirect("/sign-in")
+    return (
+      <DataErrorState
+        title="No pudimos cargar movimientos"
+        description="Tu sesion esta activa, pero no encontramos tu usuario en base de datos."
+      />
+    )
   }
 
   const recentOrders = await getRecentOrders(user.id, 20)

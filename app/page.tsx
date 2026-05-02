@@ -4,6 +4,7 @@ import { HomePreviews } from "@/components/dashboard/home-previews"
 import { SectionShortcuts } from "@/components/dashboard/section-shortcuts"
 import { SummaryCards } from "@/components/dashboard/summary-cards"
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner"
+import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getBCBAMarketStatus } from "@/lib/market/market-status"
 import { getTopMovers } from "@/lib/services/market.service"
@@ -12,16 +13,27 @@ import { getPortfolio, getRecentOrders } from "@/lib/services/portfolio.service"
 export const dynamic = "force-dynamic"
 
 export default async function Page() {
-  const user = await getCurrentUser()
   const marketStatus = getBCBAMarketStatus()
 
-  const [portfolio, recentOrders, topMovers] = user
-    ? await Promise.all([
+  let user = null
+  let portfolio = null
+  let recentOrders: Awaited<ReturnType<typeof getRecentOrders>> = []
+  let topMovers: Awaited<ReturnType<typeof getTopMovers>> = []
+  let dataError = false
+
+  try {
+    user = await getCurrentUser()
+
+    if (user) {
+      ;[portfolio, recentOrders, topMovers] = await Promise.all([
         getPortfolio(user.id),
         getRecentOrders(user.id, 3),
         getTopMovers(4),
       ])
-    : [null, [], []]
+    }
+  } catch {
+    dataError = true
+  }
 
   return (
     <>
@@ -55,7 +67,12 @@ export default async function Page() {
       </SignedOut>
 
       <SignedIn>
-        {user && portfolio && (
+        {dataError ? (
+          <DataErrorState
+            title="No pudimos cargar tu dashboard"
+            description="Tu sesion esta activa, pero fallo la sincronizacion con la base de datos. Revisa DATABASE_URL en Vercel y volve a intentar."
+          />
+        ) : user && portfolio ? (
           <>
             <WelcomeBanner
               userName={user.name}
@@ -72,7 +89,7 @@ export default async function Page() {
               totalCurrentValue={portfolio.totalCurrentValue}
             />
           </>
-        )}
+        ) : null}
       </SignedIn>
     </>
   )

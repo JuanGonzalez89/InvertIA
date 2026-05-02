@@ -6,14 +6,44 @@ import { consultarPrecioMercado } from "@/lib/tools/consultar-precio-mercado";
 import { calcularMetricas } from "@/lib/tools/calcular-metricas";
 import { explicarDecision } from "@/lib/tools/explicar-decision";
 import { stepCountIs } from "ai";
+import { auth } from "@clerk/nextjs/server";
 
 export const maxDuration = 60; // Vercel Serverless: máximo 60s para el stream
 
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
+  const { userId } = await auth();
+
+  if (!userId) {
+    return Response.json(
+      { error: "NO_AUTH", message: "Necesitas iniciar sesion para usar el chat." },
+      { status: 401 }
+    );
+  }
+
+  let user = null;
+
+  try {
+    user = await getCurrentUser();
+  } catch {
+    return Response.json(
+      {
+        error: "USER_SYNC_FAILED",
+        message:
+          "Tu sesion esta activa, pero hubo un error sincronizando usuario con la base de datos.",
+      },
+      { status: 503 }
+    );
+  }
 
   if (!user) {
-    return new Response("No autorizado", { status: 401 });
+    return Response.json(
+      {
+        error: "USER_NOT_FOUND",
+        message:
+          "No encontramos tu usuario en base de datos. Reintenta en unos segundos.",
+      },
+      { status: 404 }
+    );
   }
 
   const { messages } = await req.json();
