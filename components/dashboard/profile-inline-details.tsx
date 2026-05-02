@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 
-type EditableField = "name" | "phone"
+type EditableField = "name" | "phone" | "cbu"
 
 interface ProfileInlineDetailsProps {
   name: string
@@ -37,6 +37,7 @@ export function ProfileInlineDetails({
   const [draft, setDraft] = useState({
     name: name ?? "",
     phone: phone ?? "",
+    cbu: cbu ?? "",
   })
 
   const saveField = async (field: EditableField) => {
@@ -48,6 +49,7 @@ export function ProfileInlineDetails({
         body: JSON.stringify({
           name: draft.name.trim(),
           phone: draft.phone.trim(),
+          cbu: draft.cbu.trim(),
         }),
       })
 
@@ -79,12 +81,17 @@ export function ProfileInlineDetails({
       icon: Phone,
       value: draft.phone || "No configurado",
     },
+    {
+      key: "cbu" as const,
+      label: "CBU/CVU",
+      icon: CreditCard,
+      value: draft.cbu || "No configurado",
+    },
   ]
 
   const readonlyItems = [
     { label: "Email", icon: Mail, value: email || "Sin email" },
     { label: "País", icon: Globe, value: country || "No configurado" },
-    { label: "CBU/CVU", icon: CreditCard, value: cbu || "No configurado" },
   ]
 
   return (

@@ -6,7 +6,6 @@ import {
 } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ProfileCard } from "@/components/dashboard/profile-card"
-import { LiquidityCard } from "@/components/dashboard/liquidity-card"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { ProfileInlineDetails } from "@/components/dashboard/profile-inline-details"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
@@ -148,16 +147,12 @@ export default async function PerfilPage() {
           </section>
         </div>
 
-        <aside className="space-y-6" aria-label="Perfil y liquidez">
+        <aside className="space-y-6" aria-label="Perfil">
           <ProfileCard
             name={user.name}
             baseCurrency={user.baseCurrency}
             assetsCount={portfolio.assets.length}
             gainLossPercent={portfolio.gainLossPercent}
-          />
-          <LiquidityCard
-            liquidityARS={portfolio.liquidityARS}
-            totalCurrentValue={portfolio.totalCurrentValue}
           />
         </aside>
       </div>

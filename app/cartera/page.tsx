@@ -1,7 +1,6 @@
 import { Briefcase, Coins, PieChart, TrendingUp } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { PortfolioHoldings } from "@/components/dashboard/portfolio-holdings"
-import { LiquidityCard } from "@/components/dashboard/liquidity-card"
 import { ImportPortfolio } from "@/components/dashboard/import-portfolio"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
@@ -147,16 +146,12 @@ export default async function CarteraPage() {
           <PortfolioHoldings 
             assets={portfolio.assets} 
             showActions 
-            emptyActionHref="#importar" 
+            emptyActionHref="#import-portfolio" 
             userId={user.id} 
           />
         </div>
 
-        <aside className="space-y-6" aria-label="Distribución y liquidez">
-          <LiquidityCard
-            liquidityARS={portfolio.liquidityARS}
-            totalCurrentValue={portfolio.totalCurrentValue}
-          />
+        <aside className="space-y-6" aria-label="Distribución">
 
           <section
             aria-labelledby="allocation-title"

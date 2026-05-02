@@ -1,13 +1,21 @@
 "use client"
 
-import { Bell, Menu, Sparkles } from "lucide-react"
+import { Bell, Menu, Sparkles, MessageSquare, ArrowUpRight, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { UserButton, SignInButton, useAuth } from "@clerk/nextjs"
 import { MarketSearch } from "@/components/dashboard/market-search"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const NAV = [
   { label: "Inicio", href: "/" },
@@ -27,6 +35,34 @@ export function AppHeader() {
   const pathname = usePathname()
   const { userId } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "IA: Sugerencia de rebalanceo",
+      description: "Tu posición en CEDEARs superó el 40%. ¿Querés rebalancear?",
+      icon: MessageSquare,
+      time: "10m",
+      unread: true,
+    },
+    {
+      id: 2,
+      title: "Mercado alcista",
+      description: "AL30 subió un 5.4% tras el último anuncio económico.",
+      icon: ArrowUpRight,
+      time: "1h",
+      unread: true,
+    },
+    {
+      id: 3,
+      title: "Orden completada",
+      description: "Se ejecutó la compra de 10 unidades de AAPL.",
+      icon: CheckCircle2,
+      time: "2h",
+      unread: false,
+    }
+  ])
+
+  const unreadCount = notifications.filter(n => n.unread).length
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -73,18 +109,67 @@ export function AppHeader() {
 
         {/* Right cluster */}
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
-            aria-label="Notificaciones"
-          >
-            <Bell className="h-4 w-4" />
-            <span
-              aria-hidden
-              className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary terminal-pulse"
-            />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
+                aria-label="Notificaciones"
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span
+                    aria-hidden
+                    className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-background bg-primary"
+                  />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="flex items-center justify-between p-4 pb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Notificaciones
+                </span>
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary">
+                    {unreadCount} nuevas
+                  </span>
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.map((n) => (
+                  <DropdownMenuItem key={n.id} className="cursor-pointer p-4 focus:bg-secondary/50">
+                    <div className="flex gap-3">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+                        <n.icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm font-semibold leading-none ${n.unread ? "text-foreground" : "text-muted-foreground"}`}>
+                            {n.title}
+                          </p>
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {n.time}
+                          </span>
+                        </div>
+                        <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+                          {n.description}
+                        </p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </div>
+              <DropdownMenuSeparator />
+              <div className="p-2">
+                <Button variant="ghost" className="h-8 w-full font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Marcar todas como leídas
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {userId ? (
             <UserButton />
