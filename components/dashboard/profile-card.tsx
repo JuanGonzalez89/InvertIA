@@ -1,7 +1,26 @@
 import { Settings, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function ProfileCard() {
+interface ProfileCardProps {
+  name: string
+  baseCurrency: string
+  assetsCount: number
+  gainLossPercent: number
+}
+
+export function ProfileCard({
+  name,
+  baseCurrency,
+  assetsCount,
+  gainLossPercent,
+}: ProfileCardProps) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "IV"
+
   return (
     <section
       id="perfil"
@@ -27,11 +46,11 @@ export function ProfileCard() {
 
       <div className="mt-3 flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 font-mono text-base font-semibold text-primary-foreground">
-          JP
+          {initials}
         </div>
         <div className="min-w-0">
           <div className="truncate text-base font-semibold leading-tight text-foreground">
-            Juan Pablo
+            {name}
           </div>
           <div className="mt-0.5 inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
             <ShieldCheck className="h-3 w-3 text-primary" aria-hidden />
@@ -53,20 +72,21 @@ export function ProfileCard() {
           <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Moneda
           </dt>
-          <dd className="mt-1 font-mono text-sm font-medium text-foreground">ARS</dd>
+          <dd className="mt-1 font-mono text-sm font-medium text-foreground">{baseCurrency}</dd>
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Activos
           </dt>
-          <dd className="mt-1 font-mono text-sm font-medium text-foreground">6</dd>
+          <dd className="mt-1 font-mono text-sm font-medium text-foreground">{assetsCount}</dd>
         </div>
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Rendimiento
           </dt>
           <dd className="mt-1 font-mono text-sm font-medium text-primary">
-            +13,46%
+            {gainLossPercent >= 0 ? "+" : ""}
+            {gainLossPercent.toFixed(2)}%
           </dd>
         </div>
       </dl>

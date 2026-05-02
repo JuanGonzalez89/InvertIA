@@ -8,6 +8,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react"
+import type { Portfolio } from "@/lib/types/portfolio"
 
 interface SummaryCardProps {
   label: string
@@ -77,7 +78,14 @@ function SummaryCard({
   )
 }
 
-export function SummaryCards() {
+export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
+  const totalGainLabel =
+    portfolio.totalGainLoss >= 0
+      ? `+ $ ${portfolio.totalGainLoss.toLocaleString("es-AR")}`
+      : `- $ ${Math.abs(portfolio.totalGainLoss).toLocaleString("es-AR")}`
+
+  const totalGainPct = `${portfolio.gainLossPercent.toFixed(2)}%`
+
   return (
     <section aria-labelledby="summary-title">
       <div className="mb-3 flex items-center justify-between">
@@ -94,37 +102,41 @@ export function SummaryCards() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <SummaryCard
           label="Valor cartera"
-          value="$ 2.780.000"
-          delta="+1,8%"
-          positive
+          value={`$ ${portfolio.totalCurrentValue.toLocaleString("es-AR")}`}
+          delta={totalGainPct}
+          positive={portfolio.gainLossPercent >= 0}
           icon={Briefcase}
           highlight
         />
         <SummaryCard
           label="Total invertido"
-          value="$ 2.450.000"
+          value={`$ ${portfolio.totalInvested.toLocaleString("es-AR")}`}
           icon={PiggyBank}
         />
         <SummaryCard
           label="Liquidez"
-          value="$ 420.000"
+          value={`$ ${portfolio.liquidityARS.toLocaleString("es-AR")}`}
           icon={Wallet}
         />
         <SummaryCard
           label="Ganancia total"
-          value="+ $ 330.000"
-          delta="+13,46%"
-          positive
+          value={totalGainLabel}
+          delta={totalGainPct}
+          positive={portfolio.gainLossPercent >= 0}
           icon={TrendingUp}
         />
         <SummaryCard
           label="Rendimiento"
-          value="+13,46%"
+          value={totalGainPct}
           delta="vs costo"
-          positive
+          positive={portfolio.gainLossPercent >= 0}
           icon={ArrowUpRight}
         />
-        <SummaryCard label="Activos" value="6" icon={Coins} />
+        <SummaryCard
+          label="Activos"
+          value={portfolio.assets.length.toString()}
+          icon={Coins}
+        />
       </div>
     </section>
   )

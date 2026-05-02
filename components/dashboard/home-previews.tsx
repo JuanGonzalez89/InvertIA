@@ -1,4 +1,6 @@
 import Link from "next/link"
+import type { Asset, Order } from "@/lib/types/portfolio"
+import type { MarketQuoteSnapshot } from "@/lib/services/market.service"
 import {
   ArrowDownLeft,
   ArrowDownRight,
@@ -12,7 +14,7 @@ import {
 import { Sparkline } from "./sparkline"
 import { LiquidityCard } from "./liquidity-card"
 
-const TOP_HOLDINGS = [
+const FALLBACK_TOP_HOLDINGS = [
   {
     ticker: "YPF",
     name: "YPF S.A.",
@@ -39,20 +41,89 @@ const TOP_HOLDINGS = [
   },
 ]
 
-const TOP_MOVERS = [
+const FALLBACK_TOP_MOVERS = [
   { ticker: "NVDA", name: "NVIDIA", price: "US$ 142,30", delta: "+4,8%", positive: true },
   { ticker: "GGAL", name: "Galicia", price: "US$ 58,20", delta: "+3,2%", positive: true },
   { ticker: "AMD", name: "AMD", price: "US$ 162,40", delta: "+2,8%", positive: true },
   { ticker: "TSLA", name: "Tesla", price: "US$ 248,60", delta: "-1,8%", positive: false },
 ]
 
-const LATEST_MOVES = [
+const FALLBACK_LATEST_MOVES = [
   { type: "compra", ticker: "NVDA", total: "$ 77.000", date: "24/04" },
   { type: "venta", ticker: "VIST", total: "$ 264.000", date: "23/04" },
   { type: "compra", ticker: "YPF", total: "$ 305.000", date: "22/04" },
 ] as const
 
-export function HomePreviews() {
+interface HomePreviewsProps {
+  topHoldings?: Asset[]
+  topMovers?: MarketQuoteSnapshot[]
+  latestOrders?: Order[]
+  liquidityARS?: number
+  totalCurrentValue?: number
+}
+
+function buildSparkline(price: number, changePercent: number) {
+  const previous = changePercent === -100 ? price : price / (1 + changePercent / 100)
+
+  return Array.from({ length: 10 }, (_, index) => {
+    const progress = index / 9
+    return previous + (price - previous) * progress
+  })
+}
+
+export function HomePreviews({
+  topHoldings = [],
+  topMovers = [],
+  latestOrders = [],
+  liquidityARS,
+  totalCurrentValue,
+}: HomePreviewsProps) {
+  const holdings =
+    topHoldings.length > 0
+      ? [...topHoldings]
+          .sort((a, b) => b.quantity * b.currentPrice - a.quantity * a.currentPrice)
+          .slice(0, 3)
+          .map((asset) => {
+            const total = asset.quantity * asset.currentPrice
+            const delta = asset.dailyChangePercent
+            return {
+              ticker: asset.ticker,
+              name: asset.name,
+              total: `$ ${total.toLocaleString("es-AR")}`,
+              delta: `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%`,
+              positive: delta >= 0,
+              spark: buildSparkline(asset.currentPrice, delta),
+            }
+          })
+      : FALLBACK_TOP_HOLDINGS
+
+  const movers =
+    topMovers.length > 0
+      ? topMovers.map((quote) => ({
+          ticker: quote.ticker,
+          name: quote.name,
+          price: `${quote.currency} ${quote.price.toLocaleString("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`,
+          delta: `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`,
+          positive: quote.changePercent >= 0,
+        }))
+      : FALLBACK_TOP_MOVERS
+
+  const latestMoves =
+    latestOrders.length > 0
+      ? latestOrders.map((order) => ({
+          type: order.type === "BUY" ? "compra" : "venta",
+          ticker: order.ticker,
+          total: `$ ${order.totalAmount.toLocaleString("es-AR")}`,
+          date: order.createdAt.toLocaleDateString("es-AR", {
+            day: "2-digit",
+            month: "2-digit",
+          }),
+        }))
+      : FALLBACK_LATEST_MOVES
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Main column */}
@@ -78,7 +149,7 @@ export function HomePreviews() {
             </Link>
           </div>
           <ul className="divide-y divide-border">
-            {TOP_HOLDINGS.map((h) => (
+            {holdings.map((h) => (
               <li
                 key={h.ticker}
                 className="grid grid-cols-[1.4fr_1fr_0.8fr] items-center gap-3 px-5 py-3"
@@ -142,7 +213,7 @@ export function HomePreviews() {
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-4">
-            {TOP_MOVERS.map((s) => (
+            {movers.map((s) => (
               <article
                 key={s.ticker}
                 className="flex flex-col gap-1.5 bg-card p-4"
@@ -182,7 +253,10 @@ export function HomePreviews() {
 
       {/* Sidebar */}
       <aside className="space-y-6" aria-label="Liquidez, movimientos y chat">
-        <LiquidityCard />
+        <LiquidityCard
+          liquidityARS={liquidityARS}
+          totalCurrentValue={totalCurrentValue}
+        />
 
         {/* Movimientos preview */}
         <section
@@ -205,7 +279,7 @@ export function HomePreviews() {
             </Link>
           </div>
           <ul className="divide-y divide-border">
-            {LATEST_MOVES.map((m, i) => (
+            {latestMoves.map((m, i) => (
               <li
                 key={`${m.ticker}-${i}`}
                 className="flex items-center justify-between gap-3 px-5 py-3"

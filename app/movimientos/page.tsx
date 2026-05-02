@@ -2,41 +2,63 @@ import { ArrowDownLeft, ArrowUpRight, CircleCheck, CircleDashed, Receipt } from 
 import { PageHeader } from "@/components/dashboard/page-header"
 import { RecentMovements } from "@/components/dashboard/recent-movements"
 import { Button } from "@/components/ui/button"
+import { getCurrentUser } from "@/lib/auth/get-current-user"
+import { getRecentOrders } from "@/lib/services/portfolio.service"
+import { redirect } from "next/navigation"
 
-const STATS = [
-  {
-    label: "Total compras",
-    value: "$ 724.450",
-    helper: "Últimos 30 días",
-    icon: ArrowDownLeft,
-    tone: "primary" as const,
-  },
-  {
-    label: "Total ventas",
-    value: "$ 264.000",
-    helper: "Últimos 30 días",
-    icon: ArrowUpRight,
-    tone: "destructive" as const,
-  },
-  {
-    label: "Operaciones completadas",
-    value: "12",
-    helper: "Sin errores",
-    icon: CircleCheck,
-    tone: "primary" as const,
-  },
-  {
-    label: "Pendientes",
-    value: "1",
-    helper: "TX26 · Bono Tesoro",
-    icon: CircleDashed,
-    tone: "muted" as const,
-  },
-]
+export const dynamic = "force-dynamic"
 
 const FILTERS = ["Todas", "Compras", "Ventas", "Pendientes", "Completadas"]
 
-export default function MovimientosPage() {
+export default async function MovimientosPage() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect("/sign-in")
+  }
+
+  const recentOrders = await getRecentOrders(user.id, 20)
+
+  const totalCompras = recentOrders
+    .filter((order) => order.type === "BUY")
+    .reduce((acc, order) => acc + order.totalAmount, 0)
+  const totalVentas = recentOrders
+    .filter((order) => order.type === "SELL")
+    .reduce((acc, order) => acc + order.totalAmount, 0)
+  const completadas = recentOrders.filter((order) => order.status === "COMPLETED")
+  const pendientes = recentOrders.filter((order) => order.status === "PENDING")
+
+  const stats = [
+    {
+      label: "Total compras",
+      value: `$ ${totalCompras.toLocaleString("es-AR")}`,
+      helper: `Ultimos ${recentOrders.length} movimientos`,
+      icon: ArrowDownLeft,
+      tone: "primary" as const,
+    },
+    {
+      label: "Total ventas",
+      value: `$ ${totalVentas.toLocaleString("es-AR")}`,
+      helper: `Ultimos ${recentOrders.length} movimientos`,
+      icon: ArrowUpRight,
+      tone: "destructive" as const,
+    },
+    {
+      label: "Operaciones completadas",
+      value: completadas.length.toString(),
+      helper: "Sincronizado con base de datos",
+      icon: CircleCheck,
+      tone: "primary" as const,
+    },
+    {
+      label: "Pendientes",
+      value: pendientes.length.toString(),
+      helper: pendientes[0]?.ticker ? `${pendientes[0].ticker} pendiente` : "Sin pendientes",
+      icon: CircleDashed,
+      tone: "muted" as const,
+    },
+  ]
+
   return (
     <>
       <PageHeader
@@ -59,7 +81,7 @@ export default function MovimientosPage() {
         aria-label="Resumen de movimientos"
         className="grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
-        {STATS.map((s) => {
+        {stats.map((s) => {
           const Icon = s.icon
           const toneClasses =
             s.tone === "primary"
@@ -116,7 +138,7 @@ export default function MovimientosPage() {
         ))}
       </section>
 
-      <RecentMovements />
+      <RecentMovements orders={recentOrders.slice(0, 5)} />
     </>
   )
 }

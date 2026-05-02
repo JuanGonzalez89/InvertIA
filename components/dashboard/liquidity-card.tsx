@@ -1,10 +1,16 @@
 import { ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function LiquidityCard() {
-  const liquidity = 420_000
-  const total = 2_780_000
-  const pct = (liquidity / total) * 100
+interface LiquidityCardProps {
+  liquidityARS?: number
+  totalCurrentValue?: number
+}
+
+export function LiquidityCard({
+  liquidityARS = 420_000,
+  totalCurrentValue = 2_780_000,
+}: LiquidityCardProps) {
+  const pct = totalCurrentValue > 0 ? (liquidityARS / totalCurrentValue) * 100 : 0
 
   return (
     <section
@@ -25,7 +31,7 @@ export function LiquidityCard() {
       </div>
 
       <div className="mt-3 font-mono text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-        $ 420.000
+        $ {liquidityARS.toLocaleString("es-AR")}
       </div>
       <p className="mt-1 font-mono text-[11px] text-muted-foreground">
         Representa el{" "}

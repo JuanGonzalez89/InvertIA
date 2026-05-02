@@ -2,6 +2,9 @@ import { ArrowDownRight, ArrowUpRight, LineChart, Activity } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { MarketStocks } from "@/components/dashboard/market-stocks"
 import { Sparkline } from "@/components/dashboard/sparkline"
+import { getBCBAMarketStatus } from "@/lib/market/market-status"
+
+export const dynamic = "force-dynamic"
 
 const INDICES = [
   {
@@ -44,6 +47,8 @@ const SECTORS = [
 ]
 
 export default function MercadoPage() {
+  const marketStatus = getBCBAMarketStatus()
+
   return (
     <>
       <PageHeader
@@ -55,9 +60,12 @@ export default function MercadoPage() {
           <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
             <Activity className="h-3.5 w-3.5 text-primary" aria-hidden />
             <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              Mercado abierto
+              {marketStatus.label}
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-primary terminal-pulse" aria-hidden />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? "bg-primary terminal-pulse" : "bg-muted-foreground/60"}`}
+              aria-hidden
+            />
           </div>
         }
       />

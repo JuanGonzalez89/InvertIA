@@ -22,7 +22,17 @@ export const consultarPrecioMercado = tool({
       ),
   }),
   execute: async ({ ticker }) => {
-    const symbol = toBCBASymbol(ticker);
+    const normalizedTicker = ticker.trim().toUpperCase();
+
+    if (!/^[A-Z0-9.]{1,12}$/.test(normalizedTicker)) {
+      return {
+        error: "Ticker invalido",
+        sugerencia:
+          "Usa un simbolo valido, por ejemplo 'AAPL', 'GGAL' o 'MELI'. Evita espacios y caracteres especiales.",
+      };
+    }
+
+    const symbol = toBCBASymbol(normalizedTicker);
     console.log(`[Tool] consultarPrecioMercado → buscando ${symbol}`);
 
     // 1. Chequear caché primero
@@ -41,13 +51,13 @@ export const consultarPrecioMercado = tool({
       if (!quote.regularMarketPrice) {
         return {
           error: "Activo no encontrado en BCBA",
-          sugerencia: `No encontré cotización para ${ticker} en la bolsa argentina. Verificá que el ticker sea correcto.`,
+          sugerencia: `No encontré cotización para ${normalizedTicker} en la bolsa argentina. Verifica que el ticker sea correcto o prueba con el simbolo base sin sufijo .BA.`,
         };
       }
 
       const resultado = {
         ticker: symbol,
-        tickerBase: ticker,
+        tickerBase: normalizedTicker,
         precio: quote.regularMarketPrice,
         moneda: quote.currency ?? "ARS",
         variacionPorcentual: quote.regularMarketChangePercent?.toFixed(2),

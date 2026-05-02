@@ -7,6 +7,8 @@ import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getPortfolio } from "@/lib/services/portfolio.service"
 import { redirect } from "next/navigation"
 
+export const dynamic = "force-dynamic"
+
 export default async function CarteraPage() {
   const user = await getCurrentUser()
 

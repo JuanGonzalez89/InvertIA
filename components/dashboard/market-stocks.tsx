@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, LineChart } from "lucide-react"
 import { Sparkline } from "./sparkline"
+import { getMarketQuotes } from "@/lib/services/market.service"
 
 interface MarketStock {
   ticker: string
@@ -25,7 +26,33 @@ const STOCKS: MarketStock[] = [
   { ticker: "AMD", name: "AMD", price: "US$ 162,40", delta: "+2,8%", positive: true, spark: [157, 158, 159, 160, 161, 161.5, 162, 162.4] },
 ]
 
-export function MarketStocks() {
+function buildSparkline(price: number, changePercent: number) {
+  const previous = changePercent === -100 ? price : price / (1 + changePercent / 100)
+
+  return Array.from({ length: 8 }, (_, index) => {
+    const progress = index / 7
+    return previous + (price - previous) * progress
+  })
+}
+
+export async function MarketStocks() {
+  const quotes = await getMarketQuotes()
+
+  const stocks: MarketStock[] =
+    quotes.length > 0
+      ? quotes.map((quote) => ({
+          ticker: quote.ticker,
+          name: quote.name,
+          price: `${quote.currency} ${quote.price.toLocaleString("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`,
+          delta: `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`,
+          positive: quote.changePercent >= 0,
+          spark: buildSparkline(quote.price, quote.changePercent),
+        }))
+      : STOCKS
+
   return (
     <section
       id="mercado"
@@ -45,7 +72,7 @@ export function MarketStocks() {
       </div>
 
       <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-3 lg:grid-cols-4">
-        {STOCKS.map((s) => (
+        {stocks.map((s) => (
           <article
             key={s.ticker}
             className="group flex flex-col gap-2 bg-card p-4 transition-colors hover:bg-secondary/40"

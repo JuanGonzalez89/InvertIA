@@ -1,4 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, Clock, Receipt } from "lucide-react"
+import type { Order } from "@/lib/types/portfolio"
 
 interface Movement {
   type: "compra" | "venta"
@@ -70,7 +71,31 @@ const STATUS_STYLES: Record<Movement["status"], string> = {
   cancelado: "bg-destructive/15 text-destructive",
 }
 
-export function RecentMovements() {
+interface RecentMovementsProps {
+  orders?: Order[]
+}
+
+function toUiMovement(order: Order): Movement {
+  return {
+    type: order.type === "BUY" ? "compra" : "venta",
+    ticker: order.ticker,
+    name: order.ticker,
+    qty: order.quantity,
+    unitPrice: `$ ${order.pricePerUnit.toLocaleString("es-AR")}`,
+    total: `$ ${order.totalAmount.toLocaleString("es-AR")}`,
+    date: order.createdAt.toLocaleDateString("es-AR"),
+    status:
+      order.status === "COMPLETED"
+        ? "completado"
+        : order.status === "PENDING"
+          ? "pendiente"
+          : "cancelado",
+  }
+}
+
+export function RecentMovements({ orders }: RecentMovementsProps) {
+  const movements = orders?.length ? orders.map(toUiMovement) : MOVEMENTS
+
   return (
     <section
       id="movimientos"
@@ -93,7 +118,7 @@ export function RecentMovements() {
       </div>
 
       <ul className="divide-y divide-border">
-        {MOVEMENTS.map((m, i) => (
+        {movements.map((m, i) => (
           <li
             key={`${m.ticker}-${i}`}
             className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-secondary/40"

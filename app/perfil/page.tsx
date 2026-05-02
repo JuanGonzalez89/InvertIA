@@ -12,13 +12,11 @@ import { PageHeader } from "@/components/dashboard/page-header"
 import { ProfileCard } from "@/components/dashboard/profile-card"
 import { LiquidityCard } from "@/components/dashboard/liquidity-card"
 import { Button } from "@/components/ui/button"
+import { getCurrentUser } from "@/lib/auth/get-current-user"
+import { getPortfolio } from "@/lib/services/portfolio.service"
+import { redirect } from "next/navigation"
 
-const DETAILS = [
-  { icon: Mail, label: "Email", value: "juanpablo@investia.app" },
-  { icon: Phone, label: "Teléfono", value: "+54 9 11 5555-1234" },
-  { icon: Globe, label: "País", value: "Argentina" },
-  { icon: CreditCard, label: "CBU/CVU", value: "0000003100012345678901" },
-]
+export const dynamic = "force-dynamic"
 
 const PREFERENCES = [
   {
@@ -41,7 +39,22 @@ const PREFERENCES = [
   },
 ]
 
-export default function PerfilPage() {
+export default async function PerfilPage() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect("/sign-in")
+  }
+
+  const portfolio = await getPortfolio(user.id)
+
+  const details = [
+    { icon: Mail, label: "Email", value: user.email || "Sin email" },
+    { icon: Phone, label: "Telefono", value: "No configurado" },
+    { icon: Globe, label: "Pais", value: "Argentina" },
+    { icon: CreditCard, label: "CBU/CVU", value: "No configurado" },
+  ]
+
   return (
     <>
       <PageHeader
@@ -76,7 +89,7 @@ export default function PerfilPage() {
               </span>
             </div>
             <ul className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
-              {DETAILS.map((d) => {
+              {details.map((d) => {
                 const Icon = d.icon
                 return (
                   <li
@@ -148,8 +161,16 @@ export default function PerfilPage() {
         </div>
 
         <aside className="space-y-6" aria-label="Perfil y liquidez">
-          <ProfileCard />
-          <LiquidityCard />
+          <ProfileCard
+            name={user.name}
+            baseCurrency={user.baseCurrency}
+            assetsCount={portfolio.assets.length}
+            gainLossPercent={portfolio.gainLossPercent}
+          />
+          <LiquidityCard
+            liquidityARS={portfolio.liquidityARS}
+            totalCurrentValue={portfolio.totalCurrentValue}
+          />
         </aside>
       </div>
     </>

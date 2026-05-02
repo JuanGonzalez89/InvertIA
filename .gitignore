@@ -1,9 +1,9 @@
-# v0 runtime files
-__v0_runtime_loader.js
-__v0_devtools.tsx
+#v0 runtime files
+v0_runtime_loader.js
+v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
 
-# Common ignores
+#Common ignores
 node_modules
 .next/
 .env*.local
