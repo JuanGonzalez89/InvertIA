@@ -15,6 +15,7 @@ export interface Asset {
   currentPrice: number;   // Precio actual (lo llenará el MCP en Fase 4)
   currency: 'ARS' | 'USD'; // Moneda del activo (CEDEARs y BCBA locales = ARS, Bonos USD = USD)
   dailyChangePercent: number;
+  sparkline?: number[];
 }
 
 export interface Portfolio {

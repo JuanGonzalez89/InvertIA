@@ -96,7 +96,6 @@ export default async function PerfilPage() {
               phone={(user as any).phone}
               email={user.email}
               country={(user as any).country}
-              cbu={(user as any).cbu}
             />
           </section>
 

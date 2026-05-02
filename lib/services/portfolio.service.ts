@@ -7,7 +7,7 @@
 
 import { db } from '@/lib/prisma';
 import type { Portfolio, Order, AgentContext } from '@/lib/types/portfolio';
-import { getMarketQuote } from './market.service';
+import { getMarketQuote, type MarketQuoteSnapshot } from './market.service';
 
 // No demo mock data here — production should read from DB. Keep implementation minimal.
 
@@ -31,14 +31,14 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     });
 
     // Obtener precios para todas las posiciones
-    const quoteEntries = await Promise.all(
+    const quoteEntries: Array<[string, MarketQuoteSnapshot | null]> = await Promise.all(
       positions.map(async (pos: any) => {
         const quote = await getMarketQuote(pos.asset.yahooSymbol || pos.asset.symbol);
-        return [pos.id, quote] as const;
+        return [pos.id, quote];
       })
     );
 
-    const quoteMap = new Map(quoteEntries);
+    const quoteMap = new Map<string, MarketQuoteSnapshot | null>(quoteEntries);
     let totalInvested = 0;
     let totalCurrentValue = 0;
 
