@@ -141,8 +141,8 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       assets: mappedAssets
     };
   } catch (error) {
-    console.error('[PortfolioService] getPortfolio fallback demo:', error);
-    return MOCK_PORTFOLIO;
+    console.error('[PortfolioService] getPortfolio failed:', error);
+    throw error;
   }
 }
 
@@ -169,8 +169,8 @@ export async function getRecentOrders(
       createdAt: t.date,
     }));
   } catch (error) {
-    console.error('[PortfolioService] getRecentOrders fallback demo:', error);
-    return MOCK_ORDERS.slice(0, limit);
+    console.error('[PortfolioService] getRecentOrders failed:', error);
+    throw error;
   }
 }
 
