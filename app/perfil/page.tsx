@@ -87,13 +87,15 @@ export default async function PerfilPage() {
         title="Tu cuenta"
         description="Datos personales, liquidez disponible y preferencias de seguridad."
         meta={
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9 border-border bg-transparent hover:bg-secondary"
-          >
-            Editar perfil
-          </Button>
+          <a href="/perfil/editar" className="inline-flex">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 border-border bg-transparent hover:bg-secondary"
+            >
+              Editar perfil
+            </Button>
+          </a>
         }
       />
 

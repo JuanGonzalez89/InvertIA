@@ -65,7 +65,7 @@ function SummaryCard({
       <div className="mt-3.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 font-mono text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">
+      <div className="mt-1 font-mono text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl whitespace-nowrap">
         {value}
       </div>
       {highlight && (

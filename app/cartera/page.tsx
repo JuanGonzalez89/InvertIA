@@ -110,11 +110,14 @@ export default async function CarteraPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <PortfolioHoldings />
+          <PortfolioHoldings assets={portfolio.assets} />
         </div>
 
         <aside className="space-y-6" aria-label="Distribución y liquidez">
-          <LiquidityCard />
+          <LiquidityCard
+            liquidityARS={portfolio.liquidityARS}
+            totalCurrentValue={portfolio.totalCurrentValue}
+          />
 
           <section
             aria-labelledby="allocation-title"

@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { FileSpreadsheet, FileText, Sheet, Upload } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -36,6 +37,29 @@ const OPTIONS: ImportOption[] = [
 ]
 
 export function ImportPortfolio() {
+  const csvRef = React.createRef<HTMLInputElement>()
+  const xlsxRef = React.createRef<HTMLInputElement>()
+
+  const handleSelect = (id: string) => {
+    if (id === 'csv') csvRef.current?.click()
+    if (id === 'excel') xlsxRef.current?.click()
+    if (id === 'google-sheets') {
+      const url = window.prompt('Pega el link público de Google Sheets')
+      if (url) {
+        console.log('Google Sheets URL:', url)
+        // TODO: procesar link en backend
+        alert('Link recibido — procesalo en el backend (pendiente)')
+      }
+    }
+  }
+
+  const handleFile = async (file?: File | null) => {
+    if (!file) return
+    console.log('Selected file', file.name, file.size)
+    // TODO: subir a API para procesar
+    alert(`Archivo seleccionado: ${file.name}`)
+  }
+
   return (
     <section
       aria-labelledby="import-title"
@@ -74,6 +98,7 @@ export function ImportPortfolio() {
             <li key={opt.id}>
               <button
                 type="button"
+                onClick={() => handleSelect(opt.id)}
                 className="group relative flex h-full w-full flex-col items-start gap-3 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary/50 hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-primary transition-colors group-hover:bg-primary/15">
@@ -101,6 +126,20 @@ export function ImportPortfolio() {
             </li>
           )
         })}
+        <input
+          ref={csvRef}
+          type="file"
+          accept="text/csv,application/csv,text/plain"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+        />
+        <input
+          ref={xlsxRef}
+          type="file"
+          accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+        />
       </ul>
     </section>
   )
