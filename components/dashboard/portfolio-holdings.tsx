@@ -10,7 +10,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export function PortfolioHoldings({ assets }: { assets?: Asset[] }) {
-  const list = assets && assets.length > 0 ? assets : []
+  const list = assets ?? [];
 
   return (
     <section

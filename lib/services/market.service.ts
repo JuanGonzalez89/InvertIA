@@ -23,11 +23,16 @@ const DEFAULT_TRACKED_TICKERS = [
 ] as const;
 
 async function fetchQuoteForSymbol(symbol: string) {
+  const isArgentinian = symbol.endsWith(".BA");
   const candidates = Array.from(
-    new Set([
-      symbol.toUpperCase(),
-      symbol.includes(".") ? symbol.toUpperCase() : `${symbol.toUpperCase()}.BA`,
-    ])
+    new Set(
+      isArgentinian
+        ? [symbol.toUpperCase()]
+        : [
+            symbol.toUpperCase(),
+            symbol.includes(".") ? symbol.toUpperCase() : `${symbol.toUpperCase()}.BA`,
+          ]
+    )
   );
 
   for (const candidate of candidates) {
