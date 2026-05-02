@@ -1,5 +1,6 @@
 import { Settings, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatPercent } from "@/lib/utils"
 
 interface ProfileCardProps {
   name: string
@@ -14,6 +15,9 @@ export function ProfileCard({
   assetsCount,
   gainLossPercent,
 }: ProfileCardProps) {
+  const safeGainLossPercent =
+    assetsCount === 0 || !Number.isFinite(gainLossPercent) ? 0 : gainLossPercent
+  const gainIsPositive = safeGainLossPercent >= 0
   const initials = name
     .split(" ")
     .filter(Boolean)
@@ -84,9 +88,17 @@ export function ProfileCard({
           <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Rendimiento
           </dt>
-          <dd className="mt-1 font-mono text-sm font-medium text-primary">
-            {gainLossPercent >= 0 ? "+" : ""}
-            {gainLossPercent.toFixed(2)}%
+          <dd className="mt-1">
+            <span
+              className={`inline-flex rounded-md px-1.5 py-0.5 font-mono text-sm font-medium ${
+                gainIsPositive
+                  ? "bg-emerald-500/10 text-emerald-500"
+                  : "bg-red-500/10 text-red-500"
+              }`}
+            >
+              {gainIsPositive ? "+" : ""}
+              {formatPercent(safeGainLossPercent)}
+            </span>
           </dd>
         </div>
       </dl>

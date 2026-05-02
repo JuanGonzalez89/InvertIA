@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, LineChart } from "lucide-react"
 import { Sparkline } from "./sparkline"
 import { getMarketQuotes } from "@/lib/services/market.service"
+import { formatARS, formatPercent } from "@/lib/utils"
 
 interface MarketStock {
   ticker: string
@@ -25,17 +26,19 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
 
   const stocks: MarketStock[] =
     quotes.length > 0
-      ? quotes.map((quote) => ({
-          ticker: quote.ticker,
-          name: quote.name,
-          price: `${quote.currency} ${quote.price.toLocaleString("es-AR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`,
-          delta: `${quote.changePercent >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`,
-          positive: quote.changePercent >= 0,
-          spark: buildSparkline(quote.price, quote.changePercent),
-        }))
+      ? quotes.map((quote) => {
+          const changePercent = Number.isFinite(quote.changePercent)
+            ? quote.changePercent
+            : 0
+          return {
+            ticker: quote.ticker,
+            name: quote.name,
+            price: formatARS(quote.price),
+            delta: `${changePercent >= 0 ? "+" : ""}${formatPercent(changePercent)}`,
+            positive: changePercent >= 0,
+            spark: buildSparkline(quote.price, changePercent),
+          }
+        })
       : []
 
   const filteredStocks = query?.trim()
@@ -85,8 +88,8 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
               <span
                 className={`inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] tabular-nums ${
                   s.positive
-                    ? "bg-primary/10 text-primary"
-                    : "bg-destructive/15 text-destructive"
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-red-500/10 text-red-500"
                 }`}
               >
                 {s.positive ? (

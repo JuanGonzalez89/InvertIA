@@ -1,10 +1,6 @@
 import {
   Bell,
-  CreditCard,
-  Globe,
   KeyRound,
-  Mail,
-  Phone,
   ShieldCheck,
   UserCircle2,
 } from "lucide-react"
@@ -12,7 +8,7 @@ import { PageHeader } from "@/components/dashboard/page-header"
 import { ProfileCard } from "@/components/dashboard/profile-card"
 import { LiquidityCard } from "@/components/dashboard/liquidity-card"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
-import { Button } from "@/components/ui/button"
+import { ProfileInlineDetails } from "@/components/dashboard/profile-inline-details"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getPortfolio } from "@/lib/services/portfolio.service"
 import { redirect } from "next/navigation"
@@ -72,13 +68,6 @@ export default async function PerfilPage() {
 
   const portfolio = await getPortfolio(user.id)
 
-  const details = [
-    { icon: Mail, label: "Email", value: user.email || "Sin email" },
-    { icon: Phone, label: "Telefono", value: (user as any).phone || "No configurado" },
-    { icon: Globe, label: "Pais", value: (user as any).country || "No configurado" },
-    { icon: CreditCard, label: "CBU/CVU", value: (user as any).cbu || "No configurado" },
-  ]
-
   return (
     <>
       <PageHeader
@@ -86,17 +75,6 @@ export default async function PerfilPage() {
         eyebrow="Perfil"
         title="Tu cuenta"
         description="Datos personales, liquidez disponible y preferencias de seguridad."
-        meta={
-          <a href="/perfil/editar" className="inline-flex">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-9 border-border bg-transparent hover:bg-secondary"
-            >
-              Editar perfil
-            </Button>
-          </a>
-        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -114,29 +92,13 @@ export default async function PerfilPage() {
                 Verificada
               </span>
             </div>
-            <ul className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
-              {details.map((d) => {
-                const Icon = d.icon
-                return (
-                  <li
-                    key={d.label}
-                    className="flex items-center gap-3 bg-card px-5 py-4"
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
-                      <Icon className="h-4 w-4" aria-hidden />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {d.label}
-                      </div>
-                      <div className="mt-0.5 truncate font-mono text-sm text-foreground">
-                        {d.value}
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <ProfileInlineDetails
+              name={user.name}
+              phone={(user as any).phone}
+              email={user.email}
+              country={(user as any).country}
+              cbu={(user as any).cbu}
+            />
           </section>
 
           {/* Preferencias */}

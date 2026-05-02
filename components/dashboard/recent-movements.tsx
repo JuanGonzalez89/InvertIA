@@ -1,7 +1,14 @@
-import { ArrowDownLeft, ArrowUpRight, Clock, Receipt } from "lucide-react"
+"use client"
+
+import { ArrowDownLeft, ArrowUpRight, Clock, Receipt, Trash2 } from "lucide-react"
 import type { Order } from "@/lib/types/portfolio"
+import { formatARS } from "@/lib/utils"
+import { deleteMovement } from "@/lib/services/actions.service"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 interface Movement {
+  id: string
   type: "compra" | "venta"
   ticker: string
   name: string
@@ -24,13 +31,16 @@ interface RecentMovementsProps {
 
 function toUiMovement(order: Order): Movement {
   return {
+    id: order.id,
     type: order.type === "BUY" ? "compra" : "venta",
     ticker: order.ticker,
     name: order.ticker,
     qty: order.quantity,
-    unitPrice: `$ ${order.pricePerUnit.toLocaleString("es-AR")}`,
-    total: `$ ${order.totalAmount.toLocaleString("es-AR")}`,
-    date: order.createdAt.toLocaleDateString("es-AR"),
+    unitPrice: formatARS(order.pricePerUnit),
+    total: formatARS(order.totalAmount),
+    date: order.createdAt instanceof Date 
+      ? order.createdAt.toLocaleDateString("es-AR")
+      : new Date(order.createdAt).toLocaleDateString("es-AR"),
     status:
       order.status === "COMPLETED"
         ? "completado"
@@ -41,7 +51,22 @@ function toUiMovement(order: Order): Movement {
 }
 
 export function RecentMovements({ orders }: RecentMovementsProps) {
+  const router = useRouter()
   const movements = orders?.length ? orders.map(toUiMovement) : []
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Eliminar este movimiento del historial?")) return
+    
+    const promise = deleteMovement(id)
+    toast.promise(promise, {
+      loading: 'Eliminando movimiento...',
+      success: 'Movimiento eliminado',
+      error: 'Error al eliminar el movimiento'
+    })
+    
+    const res = await promise
+    if (res.success) router.refresh()
+  }
 
   return (
     <section
@@ -66,8 +91,15 @@ export function RecentMovements({ orders }: RecentMovementsProps) {
 
       <ul className="divide-y divide-border">
         {movements.length === 0 ? (
-          <li className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No hay movimientos para mostrar con este filtro.
+          <li className="px-5 py-10">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+                <Receipt className="h-4 w-4" aria-hidden />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                No hay movimientos para mostrar con este filtro.
+              </p>
+            </div>
           </li>
         ) : movements.map((m, i) => (
           <li
@@ -78,8 +110,8 @@ export function RecentMovements({ orders }: RecentMovementsProps) {
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
                   m.type === "compra"
-                    ? "bg-primary/10 text-primary"
-                    : "bg-destructive/15 text-destructive"
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-red-500/10 text-red-500"
                 }`}
                 aria-hidden
               >
@@ -114,13 +146,23 @@ export function RecentMovements({ orders }: RecentMovementsProps) {
               </div>
             </div>
 
-            <div className="text-right">
-              <div className="font-mono text-sm font-semibold tabular-nums text-foreground">
-                {m.total}
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="font-mono text-sm font-semibold tabular-nums text-foreground">
+                  {m.total}
+                </div>
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  {m.qty} {m.qty === 1 ? "unidad" : "unidades"}
+                </div>
               </div>
-              <div className="font-mono text-[11px] text-muted-foreground">
-                {m.qty} {m.qty === 1 ? "unidad" : "unidades"}
-              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(m.id)}
+                className="text-muted-foreground transition-colors hover:text-red-500"
+                aria-label="Eliminar movimiento"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           </li>
         ))}

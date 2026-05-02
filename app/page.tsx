@@ -93,8 +93,6 @@ export default async function Page() {
               topHoldings={portfolio.assets}
               topMovers={topMovers}
               latestOrders={recentOrders}
-              liquidityARS={portfolio.liquidityARS}
-              totalCurrentValue={portfolio.totalCurrentValue}
             />
           </>
         ) : null}

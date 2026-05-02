@@ -14,8 +14,8 @@ export function ChatMessage({ role, children }: ChatMessageProps) {
         className={cn(
           "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border",
           isUser
-            ? "border-primary/30 bg-primary/10 text-primary"
-            : "border-border bg-card text-foreground",
+            ? "border-primary/30 bg-primary/20 text-primary"
+            : "border-border bg-secondary text-foreground",
         )}
         aria-hidden
       >
@@ -25,8 +25,8 @@ export function ChatMessage({ role, children }: ChatMessageProps) {
         className={cn(
           "max-w-[80%] rounded-lg px-3 py-2 font-mono text-sm leading-relaxed",
           isUser
-            ? "bg-primary/10 text-foreground border border-primary/20"
-            : "bg-card text-foreground border border-border",
+            ? "bg-primary text-primary-foreground shadow-sm"
+            : "bg-secondary text-foreground",
         )}
       >
         {children}

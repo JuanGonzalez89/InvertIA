@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatARS } from "@/lib/utils"
 
 interface LiquidityCardProps {
   liquidityARS: number
@@ -32,7 +33,7 @@ export function LiquidityCard({
       </div>
 
       <div className="mt-3 font-mono text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-        $ {liquidityARS.toLocaleString("es-AR")}
+        {formatARS(liquidityARS)}
       </div>
       <p className="mt-1 font-mono text-[11px] text-muted-foreground">
         Representa el{" "}

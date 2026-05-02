@@ -6,6 +6,7 @@ import { ImportPortfolio } from "@/components/dashboard/import-portfolio"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getPortfolio } from "@/lib/services/portfolio.service"
+import { formatARS, formatPercent } from "@/lib/utils"
 import { redirect } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 
@@ -49,17 +50,33 @@ export default async function CarteraPage() {
   const portfolio = await getPortfolio(user.id)
 
   const ALLOCATION = [
-    { label: "Acciones", value: "$ 0", pct: 0, color: "bg-primary" },
-    { label: "Bonos", value: "$ 0", pct: 0, color: "bg-chart-4" },
-    { label: "CEDEARs", value: "$ 0", pct: 0, color: "bg-chart-3" },
-    { label: "ETFs", value: "$ 0", pct: 0, color: "bg-secondary" },
+    { label: "Acciones", value: formatARS(0), pct: 0, color: "bg-primary" },
+    { label: "Bonos", value: formatARS(0), pct: 0, color: "bg-chart-4" },
+    { label: "CEDEARs", value: formatARS(0), pct: 0, color: "bg-chart-3" },
+    { label: "ETFs", value: formatARS(0), pct: 0, color: "bg-secondary" },
   ] // TODO: Dynamic map en Fase 4
 
+  const safeGainLossPercent =
+    portfolio.totalInvested > 0 && Number.isFinite(portfolio.gainLossPercent)
+      ? portfolio.gainLossPercent
+      : 0
+  const gainIsPositive = portfolio.totalGainLoss >= 0
+
   const STATS = [
-    { label: "Valor cartera", value: `$ ${portfolio.totalCurrentValue.toLocaleString('es-AR')}`, icon: Briefcase },
-    { label: "Total invertido", value: `$ ${portfolio.totalInvested.toLocaleString('es-AR')}`, icon: Coins },
-    { label: "Ganancia/Pérdida", value: `$ ${portfolio.totalGainLoss.toLocaleString('es-AR')}`, icon: TrendingUp, accent: true },
-    { label: "Rendimiento", value: `${portfolio.gainLossPercent.toFixed(2)}%`, icon: PieChart, accent: true },
+    { label: "Valor cartera", value: formatARS(portfolio.totalCurrentValue), icon: Briefcase },
+    { label: "Total invertido", value: formatARS(portfolio.totalInvested), icon: Coins },
+    {
+      label: "Ganancia/Pérdida",
+      value: formatARS(portfolio.totalGainLoss),
+      icon: TrendingUp,
+      tone: gainIsPositive ? "positive" : "negative",
+    },
+    {
+      label: "Rendimiento",
+      value: formatPercent(safeGainLossPercent),
+      icon: PieChart,
+      tone: gainIsPositive ? "positive" : "negative",
+    },
   ]
 
   return (
@@ -86,6 +103,18 @@ export default async function CarteraPage() {
       >
         {STATS.map((s) => {
           const Icon = s.icon
+          const valueTone =
+            s.tone === "positive"
+              ? "text-emerald-500"
+              : s.tone === "negative"
+                ? "text-red-500"
+                : "text-foreground"
+          const valueBg =
+            s.tone === "positive"
+              ? "bg-emerald-500/10"
+              : s.tone === "negative"
+                ? "bg-red-500/10"
+                : ""
           return (
             <div
               key={s.label}
@@ -99,12 +128,12 @@ export default async function CarteraPage() {
                   {s.label}
                 </div>
               </div>
-              <div
-                className={`mt-3 font-mono text-xl font-semibold tabular-nums tracking-tight sm:text-2xl ${
-                  s.accent ? "text-primary" : "text-foreground"
-                }`}
-              >
-                {s.value}
+              <div className="mt-3">
+                <span
+                  className={`inline-flex rounded-md px-2 py-0.5 font-mono text-xl font-semibold tabular-nums tracking-tight sm:text-2xl ${valueTone} ${valueBg}`}
+                >
+                  {s.value}
+                </span>
               </div>
             </div>
           )
@@ -115,7 +144,12 @@ export default async function CarteraPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <PortfolioHoldings assets={portfolio.assets} />
+          <PortfolioHoldings 
+            assets={portfolio.assets} 
+            showActions 
+            emptyActionHref="#importar" 
+            userId={user.id} 
+          />
         </div>
 
         <aside className="space-y-6" aria-label="Distribución y liquidez">

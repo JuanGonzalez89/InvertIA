@@ -1,85 +1,55 @@
 import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai"; // o anthropic, según elección
+import { createOpenAI } from "@ai-sdk/openai";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
-import { createConsultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
-import { consultarPrecioMercado } from "@/lib/tools/consultar-precio-mercado";
-import { calcularMetricas } from "@/lib/tools/calcular-metricas";
-import { explicarDecision } from "@/lib/tools/explicar-decision";
-import { stepCountIs } from "ai";
-import { auth } from "@clerk/nextjs/server";
+// Importá tus tools acá:
+// import { consultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
+// import { calcularDolarImplicito } from "@/lib/tools/calcular-dolar-implicito";
 
-export const maxDuration = 60; // Vercel Serverless: máximo 60s para el stream
+// 1. CREAMOS EL CLIENTE PASANDO POR VERCEL AI GATEWAY
+const vercelAI = createOpenAI({
+  baseURL: process.env.AI_GATEWAY_URL, // <-- Vercel intercepta acá
+  apiKey: process.env.OPENAI_API_KEY, // <-- Y usa esta llave por detrás
+});
+
+export const maxDuration = 60; // Importante para que Vercel no corte la función por timeout
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    return Response.json(
-      { error: "NO_AUTH", message: "Necesitas iniciar sesion para usar el chat." },
-      { status: 401 }
-    );
-  }
-
-  let user = null;
-
   try {
-    user = await getCurrentUser();
-  } catch {
-    return Response.json(
-      {
-        error: "USER_SYNC_FAILED",
-        message:
-          "Tu sesion esta activa, pero hubo un error sincronizando usuario con la base de datos.",
-      },
-      { status: 503 }
-    );
-  }
+    // 2. Autenticación
+    const user = await getCurrentUser();
+    if (!user) {
+      return new Response("No autorizado", { status: 401 });
+    }
 
-  if (!user) {
-    return Response.json(
-      {
-        error: "USER_NOT_FOUND",
-        message:
-          "No encontramos tu usuario en base de datos. Reintenta en unos segundos.",
-      },
-      { status: 404 }
-    );
-  }
+    const { messages } = await req.json();
 
-  const { messages } = await req.json();
-  const consultarMiCartera = createConsultarMiCartera(user.id);
-
-  const systemPrompt = `
-Sos InvertIA, un asistente financiero especializado en el mercado argentino: CEDEARs, Bonos, Acciones de la BCBA.
-
-Tu rol:
-- Ayudás a ${user.name ?? "el usuario"} a entender su cartera y el mercado.
-- Siempre consultás datos reales antes de responder sobre precios o posiciones.
-- Antes de cualquier recomendación, usás la tool "explicarDecision" para estructurar tu análisis.
-- Hablás en español. Sos directo, claro y honesto sobre la incertidumbre.
-
-Reglas estrictas:
-1. NUNCA inventes precios. Si no podés consultar un precio, decilo claramente.
-2. Si el usuario no tiene cartera registrada, invitalo a cargar sus primeras transacciones.
-3. Siempre advertís que tus análisis no reemplazan a un asesor financiero habilitado.
-4. Si hay un error de mercado (429, conexión caída), respondés de forma empática y sugerís reintentar.
-
-El ID del usuario en la base de datos es: ${user.id}
-Nombre del usuario: ${user.name ?? "usuario"}
+    // 3. Prompt Maestro del Agente
+    const systemPrompt = `
+Sos InvertIA, un asistente financiero especializado en el mercado argentino (CEDEARs, Bonos, Acciones de la BCBA).
+El nombre del usuario es: ${user.name ?? "usuario"}.
+Tu rol es ayudar a gestionar la cartera y analizar el mercado.
+Hablás en español de Argentina de forma clara, directa y profesional.
+NUNCA inventes precios. Si no podés usar una tool para consultar un precio real, decilo claramente.
 `.trim();
 
-  const result = await streamText({
-    model: openai("gpt-4o"),
-    system: systemPrompt,
-    messages,
-    tools: {
-      consultarMiCartera,
-      consultarPrecioMercado,
-      calcularMetricas,
-      explicarDecision,
-    },
-    stopWhen: stepCountIs(5),
-  });
+    // 4. El stream con el modelo ruteado por el Gateway
+    const result = await streamText({
+      model: vercelAI("gpt-4o"), // o 'gpt-4-turbo' si prefieren
+      system: systemPrompt,
+      messages,
+      maxSteps: 5, // Fundamental para que el agente pueda encadenar llamadas a tools
+      tools: {
+        // Descomentá las tools que ya armaron en la Fase 4:
+        // consultarMiCartera,
+        // calcularDolarImplicito,
+        // consultarPrecioMercado,
+        // calcularMetricas,
+      },
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toDataStreamResponse();
+  } catch (error) {
+    console.error("[Chat API Error]:", error);
+    return new Response("Error procesando la solicitud en el AI Gateway", { status: 500 });
+  }
 }

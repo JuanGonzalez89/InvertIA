@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { formatARS } from "@/lib/utils"
 
 type ImportOption = {
   id: "csv" | "excel" | "google-sheets"
@@ -220,6 +221,7 @@ export function ImportPortfolio() {
   const confirmImport = async () => {
     setLoading(true)
     try {
+      // TODO: merge por ticker (sumar cantidades y promediar precios) antes de enviar, sin duplicar filas.
       const response = await fetch("/api/import/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -245,6 +247,7 @@ export function ImportPortfolio() {
 
   return (
     <section
+      id="importar"
       aria-labelledby="import-title"
       className="rounded-xl border border-border bg-card p-5 sm:p-6"
     >
@@ -321,14 +324,26 @@ export function ImportPortfolio() {
           type="file"
           accept="text/csv,application/csv,text/plain"
           className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          onChange={async (event) => {
+            await handleFile(event.target.files?.[0] ?? null)
+            event.target.value = ""
+          }}
+          onClick={(event) => {
+            event.currentTarget.value = ""
+          }}
         />
         <input
           ref={xlsxRef}
           type="file"
           accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          onChange={async (event) => {
+            await handleFile(event.target.files?.[0] ?? null)
+            event.target.value = ""
+          }}
+          onClick={(event) => {
+            event.currentTarget.value = ""
+          }}
         />
       </ul>
 
@@ -356,7 +371,7 @@ export function ImportPortfolio() {
                   <tr key={`${row.ticker}-${index}`} className="border-t border-border">
                     <td className="px-3 py-2 font-mono font-semibold">{row.ticker}</td>
                     <td className="px-3 py-2 tabular-nums">{row.quantity}</td>
-                    <td className="px-3 py-2 tabular-nums">$ {row.price.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2 tabular-nums">{formatARS(row.price)}</td>
                     <td className="px-3 py-2">
                       <Badge variant={row.type === "BUY" ? "default" : "destructive"}>
                         {row.type}

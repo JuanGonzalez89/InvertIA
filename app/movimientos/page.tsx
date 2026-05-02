@@ -5,6 +5,7 @@ import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { Button } from "@/components/ui/button"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getRecentOrders } from "@/lib/services/portfolio.service"
+import { formatARS } from "@/lib/utils"
 import { redirect } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 
@@ -53,24 +54,24 @@ export default async function MovimientosPage() {
   const stats = [
     {
       label: "Total compras",
-      value: `$ ${totalCompras.toLocaleString("es-AR")}`,
+      value: formatARS(totalCompras),
       helper: `Ultimos ${recentOrders.length} movimientos`,
       icon: ArrowDownLeft,
-      tone: "primary" as const,
+      tone: "positive" as const,
     },
     {
       label: "Total ventas",
-      value: `$ ${totalVentas.toLocaleString("es-AR")}`,
+      value: formatARS(totalVentas),
       helper: `Ultimos ${recentOrders.length} movimientos`,
       icon: ArrowUpRight,
-      tone: "destructive" as const,
+      tone: "negative" as const,
     },
     {
       label: "Operaciones completadas",
       value: completadas.length.toString(),
       helper: "Sincronizado con base de datos",
       icon: CircleCheck,
-      tone: "primary" as const,
+      tone: "positive" as const,
     },
     {
       label: "Pendientes",
@@ -106,10 +107,10 @@ export default async function MovimientosPage() {
         {stats.map((s) => {
           const Icon = s.icon
           const toneClasses =
-            s.tone === "primary"
-              ? "bg-primary/10 text-primary"
-              : s.tone === "destructive"
-                ? "bg-destructive/15 text-destructive"
+            s.tone === "positive"
+              ? "bg-emerald-500/10 text-emerald-500"
+              : s.tone === "negative"
+                ? "bg-red-500/10 text-red-500"
                 : "bg-secondary text-muted-foreground"
           return (
             <div

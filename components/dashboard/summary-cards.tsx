@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { Portfolio } from "@/lib/types/portfolio"
+import { formatARS, formatPercent } from "@/lib/utils"
 
 interface SummaryCardProps {
   label: string
@@ -17,6 +18,7 @@ interface SummaryCardProps {
   positive?: boolean
   icon: LucideIcon
   highlight?: boolean
+  valueTone?: "positive" | "negative"
 }
 
 function SummaryCard({
@@ -26,7 +28,22 @@ function SummaryCard({
   positive,
   icon: Icon,
   highlight,
+  valueTone,
 }: SummaryCardProps) {
+  const valueToneClasses =
+    valueTone === "positive"
+      ? "text-emerald-500"
+      : valueTone === "negative"
+        ? "text-red-500"
+        : "text-foreground"
+  const valueBgClasses =
+    valueTone === "positive"
+      ? "bg-emerald-500/10"
+      : valueTone === "negative"
+        ? "bg-red-500/10"
+        : ""
+  const valuePillClasses = valueTone ? "rounded-md px-2 py-0.5" : ""
+
   return (
     <div
       className={`group relative overflow-hidden rounded-xl border bg-card p-4 transition-colors ${
@@ -49,8 +66,8 @@ function SummaryCard({
           <span
             className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${
               positive
-                ? "bg-primary/10 text-primary"
-                : "bg-destructive/10 text-destructive"
+                ? "bg-emerald-500/10 text-emerald-500"
+                : "bg-red-500/10 text-red-500"
             }`}
           >
             {positive ? (
@@ -65,8 +82,12 @@ function SummaryCard({
       <div className="mt-3.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 min-w-0 break-words font-mono text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">
-        {value}
+      <div className="mt-1 min-w-0">
+        <span
+          className={`inline-flex max-w-full truncate font-mono text-xl font-semibold tabular-nums tracking-tight sm:text-2xl ${valueToneClasses} ${valueBgClasses} ${valuePillClasses}`}
+        >
+          {value}
+        </span>
       </div>
       {highlight && (
         <div
@@ -79,12 +100,15 @@ function SummaryCard({
 }
 
 export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
-  const totalGainLabel =
-    portfolio.totalGainLoss >= 0
-      ? `+ $ ${portfolio.totalGainLoss.toLocaleString("es-AR")}`
-      : `- $ ${Math.abs(portfolio.totalGainLoss).toLocaleString("es-AR")}`
-
-  const totalGainPct = `${portfolio.gainLossPercent.toFixed(2)}%`
+  const safeGainLossPercent =
+    portfolio.totalInvested > 0 && Number.isFinite(portfolio.gainLossPercent)
+      ? portfolio.gainLossPercent
+      : 0
+  const gainIsPositive = portfolio.totalGainLoss >= 0
+  const totalGainLabel = formatARS(portfolio.totalGainLoss)
+  const totalGainPct = `${safeGainLossPercent >= 0 ? "+" : ""}${formatPercent(
+    safeGainLossPercent,
+  )}`
 
   return (
     <section aria-labelledby="summary-title">
@@ -102,34 +126,36 @@ export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <SummaryCard
           label="Valor cartera"
-          value={`$ ${portfolio.totalCurrentValue.toLocaleString("es-AR")}`}
+          value={formatARS(portfolio.totalCurrentValue)}
           delta={totalGainPct}
-          positive={portfolio.gainLossPercent >= 0}
+          positive={gainIsPositive}
           icon={Briefcase}
           highlight
         />
         <SummaryCard
           label="Total invertido"
-          value={`$ ${portfolio.totalInvested.toLocaleString("es-AR")}`}
+          value={formatARS(portfolio.totalInvested)}
           icon={PiggyBank}
         />
         <SummaryCard
           label="Liquidez"
-          value={`$ ${portfolio.liquidityARS.toLocaleString("es-AR")}`}
+          value={formatARS(portfolio.liquidityARS)}
           icon={Wallet}
         />
         <SummaryCard
           label="Ganancia total"
           value={totalGainLabel}
           delta={totalGainPct}
-          positive={portfolio.gainLossPercent >= 0}
+          positive={gainIsPositive}
+          valueTone={gainIsPositive ? "positive" : "negative"}
           icon={TrendingUp}
         />
         <SummaryCard
           label="Rendimiento"
           value={totalGainPct}
           delta="vs costo"
-          positive={portfolio.gainLossPercent >= 0}
+          positive={gainIsPositive}
+          valueTone={gainIsPositive ? "positive" : "negative"}
           icon={ArrowUpRight}
         />
         <SummaryCard

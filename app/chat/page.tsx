@@ -21,10 +21,9 @@ const CAPABILITIES = [
 ]
 
 const PROMPTS = [
-  "¿Cómo viene mi cartera esta semana?",
-  "Analizá NVDA frente a AMD",
-  "Sugerime un rebalanceo conservador",
-  "Comprá 5 CEDEARs de AAPL",
+  "¿Cómo viene mi cartera hoy?",
+  "Analizá mis CEDEARs",
+  "¿Cuál es el Dólar Cable (CCL) implícito de mis activos?",
 ]
 
 export default function ChatPage() {
@@ -39,7 +38,7 @@ export default function ChatPage() {
           <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-primary terminal-pulse" aria-hidden />
             <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              Online · gpt-5
+              Online · gpt-4o
             </span>
           </div>
         }

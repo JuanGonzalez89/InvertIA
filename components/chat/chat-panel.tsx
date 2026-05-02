@@ -1,37 +1,40 @@
 'use client';
 
 import { Bot, Circle, Sparkles } from "lucide-react"
-import { ChatMessage, ToolCallStream } from "./chat-message"
+import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
-import { ToolCallPrice } from "./tool-calls/tool-call-price"
-import { ToolCallContext } from "./tool-calls/tool-call-context"
-import { ToolCallExecution } from "./tool-calls/tool-call-execution"
-import { useState, useEffect, useRef } from "react";
-import { useChat } from '@ai-sdk/react'
+import { useEffect, useRef, type FormEvent } from "react"
+import { useChat } from "@ai-sdk/react"
 
 export function ChatPanel() {
-  const { messages, sendMessage, error, status } = useChat();
-  const [input, setInput] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    append,
+    isLoading,
+    error,
+  } = useChat()
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
-  }
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    sendMessage({ role: 'user', content: input });
-    setInput('');
-  }
-
-  const append = (message: any) => {
-    sendMessage(message);
-  }
+  const suggestedPrompts = [
+    "¿Cómo viene mi cartera hoy?",
+    "Analizá mis CEDEARs",
+    "¿Cuál es el Dólar Cable (CCL) implícito de mis activos?",
+  ]
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, isLoading])
+
+  const handleSafeSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (!input.trim()) {
+      event.preventDefault()
+      return
+    }
+    handleSubmit(event)
+  }
 
   return (
     <section
@@ -51,7 +54,7 @@ export function ChatPanel() {
               AI Portfolio Manager
             </h2>
             <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-              Asistente financiero · gpt-5
+              Asistente financiero · gpt-4o
             </p>
           </div>
         </div>
@@ -67,10 +70,29 @@ export function ChatPanel() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col gap-4 px-4 py-4">
-          {messages.length === 0 && (
-             <ChatMessage role="assistant">
-              ¡Hola! Soy tu IA de InvertIA. ¿En qué te puedo ayudar hoy?
-             </ChatMessage>
+          {messages.length === 0 && !error && (
+            <div className="rounded-lg border border-dashed border-border bg-background/40 p-4">
+              <ChatMessage role="assistant">
+                ¡Hola! Soy tu IA de InvertIA. ¿En qué te puedo ayudar hoy?
+              </ChatMessage>
+              <div className="mt-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Sugerencias para empezar
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {suggestedPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => append({ role: "user", content: prompt })}
+                      className="rounded-full border border-border bg-card px-3 py-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           {error && (
@@ -81,19 +103,31 @@ export function ChatPanel() {
 
           {messages.map((m) => (
             <ChatMessage key={m.id} role={m.role as "user" | "assistant"}>
-               {m.content}
+              {m.content}
             </ChatMessage>
           ))}
 
-          {status === "submitted" || status === "streaming" ? (
-            <ChatMessage role="assistant">Estoy procesando tu consulta...</ChatMessage>
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Escribiendo</span>
+              <div className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" />
+              </div>
+            </div>
           ) : null}
 
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <ChatInput input={input} handleInputChange={handleInputChange} handleSubmit={handleSubmit} append={append} />
+      <ChatInput
+        input={input}
+        handleInputChange={handleInputChange}
+        handleSubmit={handleSafeSubmit}
+        isLoading={isLoading}
+      />
     </section>
   )
 }
