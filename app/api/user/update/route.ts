@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 })
 
   const body = await req.json()
-  const { name, phone, country, cbu } = body
+  const { name, phone, country } = body
 
   try {
     const updated = await db.user.update({
@@ -16,7 +16,6 @@ export async function POST(req: Request) {
         name: name || undefined,
         phone: phone || undefined,
         country: country || undefined,
-        cbu: cbu || undefined,
       },
     })
 

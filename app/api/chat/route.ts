@@ -1,9 +1,10 @@
 import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
-// Importá tus tools acá:
-// import { consultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
-// import { calcularDolarImplicito } from "@/lib/tools/calcular-dolar-implicito";
+import { consultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
+import { consultarPrecioMercado } from "@/lib/tools/consultar-precio-mercado";
+import { calcularMetricas } from "@/lib/tools/calcular-metricas";
+import { explicarDecision } from "@/lib/tools/explicar-decision";
 
 // 1. CREAMOS EL CLIENTE PASANDO POR VERCEL AI GATEWAY
 const vercelAI = createOpenAI({
@@ -39,11 +40,10 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
       messages,
       maxSteps: 5, // Fundamental para que el agente pueda encadenar llamadas a tools
       tools: {
-        // Descomentá las tools que ya armaron en la Fase 4:
-        // consultarMiCartera,
-        // calcularDolarImplicito,
-        // consultarPrecioMercado,
-        // calcularMetricas,
+        consultarMiCartera,
+        consultarPrecioMercado,
+        calcularMetricas,
+        explicarDecision,
       },
     });
 

@@ -129,33 +129,116 @@ export async function executeOrder(
   pricePerUnit: number,
   type: 'BUY' | 'SELL'
 ): Promise<{ success: boolean; updatedPortfolio: Portfolio; order: Order }> {
-  // TODO Fase 4: Llamar a la DB/MCP y persistir el cambio.
-  const portfolio = await getPortfolio(userId);
-  const totalAmount = quantity * pricePerUnit;
+  try {
+    // 1. Obtener o crear el activo en la DB
+    let asset = await db.asset.findUnique({
+      where: { symbol: ticker.toUpperCase() }
+    });
 
-  if (type === 'BUY' && portfolio.liquidityARS < totalAmount) {
-    throw new Error('Liquidez insuficiente para ejecutar la orden de compra.');
+    if (!asset) {
+      // Intentamos crear un activo genérico si no existe
+      asset = await db.asset.create({
+        data: {
+          symbol: ticker.toUpperCase(),
+          name: ticker.toUpperCase(),
+          type: 'STOCK',
+          market: 'BCBA',
+          currency: 'ARS',
+          yahooSymbol: ticker.toUpperCase() + '.BA'
+        }
+      });
+    }
+
+    // 2. Registrar la transacción
+    const totalAmount = quantity * pricePerUnit;
+    const transaction = await db.transaction.create({
+      data: {
+        userId,
+        assetId: asset.id,
+        type: type === 'BUY' ? 'BUY' : 'SELL',
+        quantity,
+        price: pricePerUnit,
+        total: totalAmount,
+        currency: 'ARS',
+        date: new Date(),
+        source: 'MANUAL'
+      }
+    });
+
+    // 3. Actualizar la posición del usuario
+    const existingPosition = await db.position.findUnique({
+      where: { userId_assetId: { userId, assetId: asset.id } }
+    });
+
+    if (type === 'BUY') {
+      if (existingPosition) {
+        // Promediamos el precio de compra
+        const newQuantity = existingPosition.quantity + quantity;
+        const newAvgPrice = ((existingPosition.quantity * existingPosition.avgPrice) + (quantity * pricePerUnit)) / newQuantity;
+        
+        await db.position.update({
+          where: { id: existingPosition.id },
+          data: { quantity: newQuantity, avgPrice: newAvgPrice }
+        });
+      } else {
+        await db.position.create({
+          data: {
+            userId,
+            assetId: asset.id,
+            quantity,
+            avgPrice: pricePerUnit,
+            currency: 'ARS'
+          }
+        });
+      }
+    } else {
+      // Venta
+      if (!existingPosition || existingPosition.quantity < quantity) {
+        throw new Error('Cantidad insuficiente para vender');
+      }
+      
+      const newQuantity = existingPosition.quantity - quantity;
+      if (newQuantity === 0) {
+        await db.position.delete({ where: { id: existingPosition.id } });
+      } else {
+        await db.position.update({
+          where: { id: existingPosition.id },
+          data: { quantity: newQuantity }
+        });
+      }
+    }
+
+    // 4. Actualizar CashBalance (Pesos)
+    const cashBalance = await db.cashBalance.findUnique({
+      where: { userId_currency: { userId, currency: 'ARS' } }
+    });
+
+    if (cashBalance) {
+      await db.cashBalance.update({
+        where: { id: cashBalance.id },
+        data: {
+          amount: type === 'BUY' 
+            ? cashBalance.amount - totalAmount 
+            : cashBalance.amount + totalAmount
+        }
+      });
+    }
+
+    const updatedPortfolio = await getPortfolio(userId);
+    const newOrder: Order = {
+      id: transaction.id,
+      type: type as 'BUY' | 'SELL',
+      ticker,
+      quantity,
+      pricePerUnit,
+      totalAmount,
+      status: 'COMPLETED',
+      createdAt: transaction.date,
+    };
+
+    return { success: true, updatedPortfolio, order: newOrder };
+  } catch (error) {
+    console.error('[PortfolioService] executeOrder failed:', error);
+    throw error;
   }
-
-  // Simulamos la actualización en memoria (en Fase 4 esto persiste en DB)
-  const updatedPortfolio: Portfolio = {
-    ...portfolio,
-    liquidityARS: type === 'BUY'
-      ? portfolio.liquidityARS - totalAmount
-      : portfolio.liquidityARS + totalAmount,
-  };
-
-  const newOrder: Order = {
-    id: `order_${Date.now()}`,
-    type,
-    ticker,
-    quantity,
-    pricePerUnit,
-    totalAmount,
-    status: 'COMPLETED',
-    createdAt: new Date(),
-  };
-
-  console.log(`[PortfolioService] executeOrder: ${type} ${quantity} ${ticker}`);
-  return { success: true, updatedPortfolio, order: newOrder };
 }

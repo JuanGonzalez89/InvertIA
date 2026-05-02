@@ -21,6 +21,7 @@ import { cn, formatARS } from "@/lib/utils"
 import { clearPortfolio, deletePosition } from "@/lib/services/actions.service"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { NewTransactionDialog } from "./new-transaction-dialog"
 
 const TYPE_COLORS: Record<string, string> = {
   ACCION: "bg-primary/10 text-primary",
@@ -156,9 +157,12 @@ export function PortfolioHoldings({
               Agregá tu primer activo para empezar a invertir.
             </p>
           </div>
-          <Button asChild className="mt-2">
-            <a href={emptyActionHref}>Agregar primer activo</a>
-          </Button>
+          <div className="flex gap-2 mt-2">
+            {userId && <NewTransactionDialog userId={userId} />}
+            <Button asChild variant="outline">
+              <a href={emptyActionHref}>Importar CSV/Excel</a>
+            </Button>
+          </div>
         </div>
       ) : (
         <ul className="divide-y divide-border">

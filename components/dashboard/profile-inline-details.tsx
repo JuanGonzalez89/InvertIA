@@ -14,14 +14,13 @@ import {
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 
-type EditableField = "name" | "phone" | "cbu"
+type EditableField = "name" | "phone"
 
 interface ProfileInlineDetailsProps {
   name: string
   phone?: string | null
   email?: string | null
   country?: string | null
-  cbu?: string | null
 }
 
 export function ProfileInlineDetails({
@@ -29,7 +28,6 @@ export function ProfileInlineDetails({
   phone,
   email,
   country,
-  cbu,
 }: ProfileInlineDetailsProps) {
   const router = useRouter()
   const [editing, setEditing] = useState<EditableField | null>(null)
@@ -37,7 +35,6 @@ export function ProfileInlineDetails({
   const [draft, setDraft] = useState({
     name: name ?? "",
     phone: phone ?? "",
-    cbu: cbu ?? "",
   })
 
   const saveField = async (field: EditableField) => {
@@ -49,7 +46,6 @@ export function ProfileInlineDetails({
         body: JSON.stringify({
           name: draft.name.trim(),
           phone: draft.phone.trim(),
-          cbu: draft.cbu.trim(),
         }),
       })
 
@@ -80,12 +76,6 @@ export function ProfileInlineDetails({
       label: "Teléfono",
       icon: Phone,
       value: draft.phone || "No configurado",
-    },
-    {
-      key: "cbu" as const,
-      label: "CBU/CVU",
-      icon: CreditCard,
-      value: draft.cbu || "No configurado",
     },
   ]
 
