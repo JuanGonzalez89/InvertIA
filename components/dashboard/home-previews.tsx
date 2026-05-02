@@ -14,33 +14,7 @@ import {
 import { Sparkline } from "./sparkline"
 import { LiquidityCard } from "./liquidity-card"
 
-const FALLBACK_TOP_HOLDINGS = [
-  {
-    ticker: "YPF",
-    name: "YPF S.A.",
-    total: "$ 1.525.000",
-    delta: "+2,8%",
-    positive: true,
-    spark: [28, 28.4, 28.9, 29.3, 29.8, 29.5, 30.0, 30.2, 30.4, 30.5],
-  },
-  {
-    ticker: "TX26",
-    name: "Bono Tesoro 2026",
-    total: "$ 1.494.000",
-    delta: "+0,2%",
-    positive: true,
-    spark: [1240, 1241, 1242, 1244, 1243, 1244, 1245, 1244, 1245, 1245],
-  },
-  {
-    ticker: "VIST",
-    name: "Vista Energy",
-    total: "$ 1.320.000",
-    delta: "-1,3%",
-    positive: false,
-    spark: [55, 54.5, 54, 53.5, 53.8, 53.2, 52.9, 53, 52.6, 52.8],
-  },
-]
-
+// When portfolio data is not provided, show a lightweight empty state
 const FALLBACK_TOP_MOVERS = [
   { ticker: "NVDA", name: "NVIDIA", price: "US$ 142,30", delta: "+4,8%", positive: true },
   { ticker: "GGAL", name: "Galicia", price: "US$ 58,20", delta: "+3,2%", positive: true },
@@ -81,21 +55,21 @@ export function HomePreviews({
   const holdings =
     topHoldings.length > 0
       ? [...topHoldings]
-          .sort((a, b) => b.quantity * b.currentPrice - a.quantity * a.currentPrice)
+          .sort((a, b) => b.quantity * (b.currentPrice || 0) - a.quantity * (a.currentPrice || 0))
           .slice(0, 3)
           .map((asset) => {
-            const total = asset.quantity * asset.currentPrice
-            const delta = asset.dailyChangePercent
+            const total = asset.quantity * (asset.currentPrice || asset.avgBuyPrice || 0)
+            const delta = asset.dailyChangePercent ?? 0
             return {
               ticker: asset.ticker,
               name: asset.name,
               total: `$ ${total.toLocaleString("es-AR")}`,
               delta: `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%`,
               positive: delta >= 0,
-              spark: buildSparkline(asset.currentPrice, delta),
+              spark: buildSparkline(asset.currentPrice || asset.avgBuyPrice || 0, delta),
             }
           })
-      : FALLBACK_TOP_HOLDINGS
+      : []
 
   const movers =
     topMovers.length > 0
@@ -122,7 +96,7 @@ export function HomePreviews({
             month: "2-digit",
           }),
         }))
-      : FALLBACK_LATEST_MOVES
+      : []
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
