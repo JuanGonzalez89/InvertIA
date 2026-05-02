@@ -29,7 +29,7 @@ const PROMPTS = [
 
 export default function ChatPage() {
   return (
-    <>
+    <div>
       <PageHeader
         icon={Bot}
         eyebrow="Chat IA"
@@ -108,6 +108,6 @@ export default function ChatPage() {
           </section>
         </aside>
       </div>
-    </>
+    </div>
   )
 }
