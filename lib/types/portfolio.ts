@@ -11,8 +11,9 @@ export interface Asset {
   name: string;
   type: AssetType;
   quantity: number;
-  avgBuyPrice: number;    // Precio promedio de compra (ARS)
+  avgBuyPrice: number;    // Precio promedio de compra
   currentPrice: number;   // Precio actual (lo llenará el MCP en Fase 4)
+  currency: 'ARS' | 'USD'; // Moneda del activo (CEDEARs y BCBA locales = ARS, Bonos USD = USD)
   dailyChangePercent: number;
 }
 

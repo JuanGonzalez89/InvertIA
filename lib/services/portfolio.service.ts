@@ -15,13 +15,14 @@ import { getMarketQuote } from './market.service';
 
 export async function getPortfolio(userId: string): Promise<Portfolio> {
   try {
-    // Obtenemos los balances de efectivo del usuario
+    // Obtenemos los balances de efectivo del usuario en todas las monedas
     const cashBalances = await db.cashBalance.findMany({
       where: { userId }
     });
 
-    // Asumimos ARS por defecto
+    // Separamos liquidez por moneda (por ahora retornamos ARS como principal)
     const liquidityARS = cashBalances.find((b: any) => b.currency === 'ARS')?.amount || 0;
+    const liquidityUSD = cashBalances.find((b: any) => b.currency === 'USD')?.amount || 0;
 
     // Obtenemos sus posiciones actuales junto con la data del activo
     const positions = await db.position.findMany({
@@ -29,6 +30,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       include: { asset: true }
     });
 
+    // Obtener precios para todas las posiciones
     const quoteEntries = await Promise.all(
       positions.map(async (pos: any) => {
         const quote = await getMarketQuote(pos.asset.yahooSymbol || pos.asset.symbol);
@@ -41,6 +43,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     let totalCurrentValue = 0;
 
     const mappedAssets = positions.map((pos: any) => {
+      // Calcular valores: aquí asumimos que avgPrice está en la misma moneda que la posición
       const invested = pos.quantity * pos.avgPrice;
       const quote = quoteMap.get(pos.id);
       const currentPrice = quote?.price ?? pos.avgPrice;
@@ -57,6 +60,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
         quantity: pos.quantity,
         avgBuyPrice: pos.avgPrice,
         currentPrice,
+        currency: pos.asset.currency,
         dailyChangePercent:
           quote && pos.avgPrice > 0
             ? ((currentPrice / pos.avgPrice) - 1) * 100
