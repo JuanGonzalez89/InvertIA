@@ -2,7 +2,7 @@ import { ArrowDownLeft, ArrowUpRight, CircleCheck, CircleDashed, Receipt } from 
 import { PageHeader } from "@/components/dashboard/page-header"
 import { MovementsControls } from "@/components/dashboard/movements-controls"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
-import { Button } from "@/components/ui/button"
+import { ExportMovementsButton } from "@/components/dashboard/export-movements-button"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getRecentOrders } from "@/lib/services/portfolio.service"
 import { formatARS } from "@/lib/utils"
@@ -90,12 +90,7 @@ export default async function MovimientosPage() {
         title="Historial de operaciones"
         description="Compras, ventas y movimientos pendientes de tu cartera, con detalle por activo y fecha."
         meta={
-          <Button
-            size="sm"
-            className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            Exportar CSV
-          </Button>
+          <ExportMovementsButton orders={recentOrders} />
         }
       />
 

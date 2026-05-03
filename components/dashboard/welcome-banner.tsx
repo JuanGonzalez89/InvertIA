@@ -19,8 +19,6 @@ export function WelcomeBanner({
     timeZone: "America/Argentina/Buenos_Aires",
   })
 
-  const firstName = userName.split(" ")[0] ?? "inversor"
-
   return (
     <section
       id="inicio"
@@ -37,7 +35,7 @@ export function WelcomeBanner({
           className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
         >
           Hola, bienvenido a InvertIA,{" "}
-          <span className="text-primary">{firstName}</span>
+          <span className="text-primary">{userName}</span>
         </h1>
         <p className="max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
           Gestioná tu cartera, analizá tus CEDEARs y tomá decisiones con ayuda de

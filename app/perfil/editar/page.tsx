@@ -9,17 +9,16 @@ export default function EditProfilePage() {
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [country, setCountry] = useState("")
-  const [cbu, setCbu] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     try {
       const res = await fetch('/api/user/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, country, cbu })
+        body: JSON.stringify({ name, phone, country })
       })
 
       if (res.ok) {
@@ -52,11 +51,6 @@ export default function EditProfilePage() {
         <div>
           <label className="block text-sm font-medium text-muted-foreground">País</label>
           <input value={country} onChange={(e)=>setCountry(e.target.value)} className="mt-1 block w-full rounded-md border px-3 py-2" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-muted-foreground">CBU/CVU</label>
-          <input value={cbu} onChange={(e)=>setCbu(e.target.value)} className="mt-1 block w-full rounded-md border px-3 py-2" />
         </div>
 
         <div className="flex items-center gap-2">

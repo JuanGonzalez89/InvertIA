@@ -41,7 +41,7 @@ export default async function CarteraPage() {
   }
 
   // Si el usuario no completó el perfil, redirigimos al onboarding/editar perfil
-  if (!(user as any).phone || !(user as any).cbu) {
+  if (!(user as any).phone) {
     redirect('/perfil/editar')
   }
 
@@ -83,7 +83,7 @@ export default async function CarteraPage() {
       <PageHeader
         icon={Briefcase}
         eyebrow="Mi cartera"
-        title={`Panel de ${user.name.split(' ')[0]}`}
+        title={`Panel de ${user.name}`}
         description="Visualizá tus activos reales guardados en base de datos."
         meta={
           <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">

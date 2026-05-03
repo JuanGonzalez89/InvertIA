@@ -73,7 +73,7 @@ export default async function PerfilPage() {
         icon={UserCircle2}
         eyebrow="Perfil"
         title="Tu cuenta"
-        description="Datos personales, liquidez disponible y preferencias de seguridad."
+        description="Datos personales y preferencias de seguridad."
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

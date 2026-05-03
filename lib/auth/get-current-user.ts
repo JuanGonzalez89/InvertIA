@@ -12,7 +12,6 @@ type AppUser = {
   baseCurrency: BaseCurrency;
   phone?: string | null;
   country?: string | null;
-  cbu?: string | null;
 };
 
 export type DbUser = Awaited<ReturnType<typeof syncCurrentUserWithDatabase>>;
@@ -31,7 +30,6 @@ function buildFallbackUser(user: Awaited<ReturnType<typeof currentUser>>): AppUs
     baseCurrency: "ARS",
     phone: null,
     country: null,
-    cbu: null,
   };
 }
 

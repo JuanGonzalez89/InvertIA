@@ -46,7 +46,7 @@ export default async function Page() {
             Gestiona tu cartera con IA, datos reales y foco en mercado argentino.
           </h1>
           <p className="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Inicia sesion para ver tu dashboard personal, tu liquidez real y tus
+            Inicia sesion para ver tu dashboard personal, tu cartera y tus
             movimientos conectados a base de datos.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -72,10 +72,10 @@ export default async function Page() {
             title="No pudimos cargar tu dashboard"
             description="Tu sesion esta activa, pero fallo la sincronizacion con la base de datos. Revisa DATABASE_URL en Vercel y volve a intentar."
           />
-        ) : user && (!((user as any).phone) || !((user as any).cbu)) ? (
-          <section className="rounded-xl border border-border bg-card p-6 sm:p-10">
-            <h2 className="text-lg font-semibold">Completa tu perfil</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Para continuar, completá tu teléfono y CBU/CVU.</p>
+      ) : user && !((user as any).phone) ? (
+        <section className="rounded-xl border border-border bg-card p-6 sm:p-10">
+          <h2 className="text-lg font-semibold">Completa tu perfil</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Para continuar, completá tu teléfono.</p>
             <div className="mt-4">
               <a href="/perfil/editar" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">Completar perfil</a>
             </div>

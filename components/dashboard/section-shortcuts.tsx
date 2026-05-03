@@ -51,7 +51,7 @@ const SHORTCUTS: Shortcut[] = [
   {
     href: "/perfil",
     title: "Perfil",
-    description: "Datos de cuenta, liquidez y configuración.",
+    description: "Datos de cuenta y configuración.",
     icon: UserCircle2,
     meta: "Verificado",
   },

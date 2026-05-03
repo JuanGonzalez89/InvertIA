@@ -26,19 +26,21 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
 
   const stocks: MarketStock[] =
     quotes.length > 0
-      ? quotes.map((quote) => {
-          const changePercent = Number.isFinite(quote.changePercent)
-            ? quote.changePercent
-            : 0
-          return {
-            ticker: quote.ticker,
-            name: quote.name,
-            price: formatARS(quote.price),
-            delta: `${changePercent >= 0 ? "+" : ""}${formatPercent(changePercent)}`,
-            positive: changePercent >= 0,
-            spark: buildSparkline(quote.price, changePercent),
-          }
-        })
+      ? quotes
+          .filter((quote) => quote.currency === 'ARS')
+          .map((quote) => {
+            const changePercent = Number.isFinite(quote.changePercent)
+              ? quote.changePercent
+              : 0
+            return {
+              ticker: quote.ticker,
+              name: quote.name,
+              price: formatARS(quote.price),
+              delta: `${changePercent >= 0 ? "+" : ""}${formatPercent(changePercent)}`,
+              positive: changePercent >= 0,
+              spark: buildSparkline(quote.price, changePercent),
+            }
+          })
       : []
 
   const filteredStocks = query?.trim()
@@ -58,18 +60,18 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
         <div className="flex items-center gap-2">
           <LineChart className="h-4 w-4 text-primary" aria-hidden />
           <h2 id="market-title" className="text-sm font-semibold text-foreground">
-            Acciones destacadas
+            CEDEARs y Acciones Locales
           </h2>
         </div>
         <span className="font-mono text-[11px] text-muted-foreground">
-          Tiempo real · NYSE/NASDAQ
+          En pesos · BCBA
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-3 lg:grid-cols-4">
         {filteredStocks.length === 0 ? (
           <div className="col-span-full px-5 py-10 text-sm text-muted-foreground">
-            No encontramos activos para esta búsqueda.
+            Ticket no encontrado
           </div>
         ) : filteredStocks.map((s) => (
           <article

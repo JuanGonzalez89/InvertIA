@@ -138,11 +138,6 @@ export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
           icon={PiggyBank}
         />
         <SummaryCard
-          label="Liquidez"
-          value={formatARS(portfolio.liquidityARS)}
-          icon={Wallet}
-        />
-        <SummaryCard
           label="Ganancia total"
           value={totalGainLabel}
           delta={totalGainPct}
