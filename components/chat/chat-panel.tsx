@@ -45,14 +45,14 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
     if (!input.trim()) {
       return
     }
-    setServerError(null) // limpiar error anterior al reintentar
-    sendMessage({ role: "user", parts: [{ type: 'text', text: input }] } as any, { body: { cartera: portfolio } })
+    setServerError(null)
+    sendMessage({ text: input }, { body: { cartera: portfolio } })
     setInput("")
   }
 
   const append = (msg: any) => {
     setServerError(null)
-    sendMessage({ role: msg.role, parts: [{ type: 'text', text: msg.content }] } as any, { body: { cartera: portfolio } })
+    sendMessage({ text: msg.content }, { body: { cartera: portfolio } })
   }
 
   return (
