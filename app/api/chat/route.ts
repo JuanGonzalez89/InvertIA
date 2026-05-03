@@ -24,12 +24,12 @@ function getApiKeys(): string[] {
   return keys;
 }
 
-// Round-robin atómico: distribuye requests entre todas las keys
-let _keyIndex = 0;
-function nextKey(keys: string[]): string {
-  const key = keys[_keyIndex % keys.length];
-  _keyIndex++;
-  return key;
+// Selección Aleatoria: distribuye requests entre todas las keys.
+// En entornos Serverless (Vercel), un contador global se resetea. 
+// La selección aleatoria es la forma más robusta de rotar sin estado.
+function getRandomKey(keys: string[]): { key: string; index: number } {
+  const index = Math.floor(Math.random() * keys.length);
+  return { key: keys[index], index };
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -88,14 +88,13 @@ export async function POST(req: Request) {
       return new Response("El cuerpo de la solicitud no contiene mensajes válidos.", { status: 400 });
     }
 
-    // 4. Seleccionar API key (round-robin entre todas las configuradas)
+    // 4. Seleccionar API key (aleatorio entre todas las configuradas)
     const keys = getApiKeys();
-    const apiKey = nextKey(keys);
-    const keyNum = (_keyIndex % keys.length) + 1;
+    const { key: apiKey, index: keyIndex } = getRandomKey(keys);
 
     console.log(
-      "[Chat API] provider=gemini model=gemini-2.5-flash key=%d/%d chatId=%s msgs=%d rl_rem=%d",
-      keyNum, keys.length, chatId, messages?.length ?? 0, rl.remaining
+      "[Chat API] provider=gemini model=gemini-2.5-flash keyIdx=%d/%d chatId=%s msgs=%d rl_rem=%d",
+      keyIndex + 1, keys.length, chatId, messages?.length ?? 0, rl.remaining
     );
 
     // 5. RAG: Recuperar contexto de cartera del usuario
