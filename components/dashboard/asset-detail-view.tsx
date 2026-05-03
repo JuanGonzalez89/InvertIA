@@ -189,7 +189,13 @@ export function AssetDetailView({ ticker }: AssetDetailViewProps) {
                 </span>
               </div>
               <p className="max-w-3xl text-sm text-muted-foreground">
-                {data.about}
+                {data.about && data.about.length > 220 ? (
+                  <>
+                    {data.about.slice(0, 220)}...
+                  </>
+                ) : (
+                  <>{data.about ?? 'Descripción no disponible.'}</>
+                )}
               </p>
             </div>
           </div>
@@ -326,18 +332,39 @@ export function AssetDetailView({ ticker }: AssetDetailViewProps) {
         <MetricCard
           label="Última actualización"
           value={new Date(data.lastUpdated).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-          hint="Datos frescos desde Yahoo Finance"
+          hint="Últimos datos"
         />
       </section>
-
       <section className="rounded-xl border border-border bg-card p-5">
         <div className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
           <BarChart3 className="h-3.5 w-3.5 text-primary" />
-          About / Perfil
+          Últimas noticias
         </div>
-        <p className="max-w-4xl text-sm leading-7 text-muted-foreground">
-          {data.about}
-        </p>
+        {data.news && data.news.length > 0 ? (
+          <div className="space-y-4">
+            {/* Highlight latest */}
+            <article className="rounded-md border border-border bg-background/40 p-4">
+              <a href={data.news[0].link ?? '#'} target="_blank" rel="noreferrer" className="text-foreground no-underline hover:underline">
+                <h3 className="text-lg font-semibold">{data.news[0].title}</h3>
+              </a>
+              <div className="mt-2 text-sm text-muted-foreground">
+                {data.news[0].source ? `${data.news[0].source} · ` : ''}
+                {data.news[0].publishedAt ? new Date(data.news[0].publishedAt).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : ''}
+              </div>
+            </article>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {data.news.slice(1, 5).map((n, idx) => (
+                <a key={idx} href={n.link ?? '#'} target="_blank" rel="noreferrer" className="block rounded-md border border-border bg-card p-3 hover:bg-secondary/20">
+                  <div className="font-semibold text-foreground text-sm">{n.title}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{n.source ?? ''} {n.publishedAt ? `· ${new Date(n.publishedAt).toLocaleDateString('es-AR')}` : ''}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No hay noticias recientes para este activo.</p>
+        )}
       </section>
 
       <section className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">

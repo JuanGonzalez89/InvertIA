@@ -26,6 +26,12 @@ export type AssetDetailData = {
   cedearRatioSource: "db" | "fallback" | "missing";
   impliedCCL: number | null;
   about: string;
+  news: Array<{
+    title: string;
+    link?: string | null;
+    source?: string | null;
+    publishedAt?: string | null;
+  }>;
   chartPoints: AssetDetailPoint[];
   chartLabel: string;
   lastUpdated: string;
@@ -153,6 +159,31 @@ async function fetchProfileText(symbol: string): Promise<string | null> {
   }
 }
 
+async function fetchNews(symbol: string) {
+  try {
+    // yahoo-finance2 does not guarantee a stable `news` helper across versions,
+    // try `search` and fallback to empty array. Keep this tolerant to errors.
+    const results = await (yahooFinance as any).search(symbol);
+    const rawNews = (results && results.news) || (results && results.items) || [];
+
+    if (!Array.isArray(rawNews)) return [];
+
+    return rawNews.slice(0, 6).map((n: any) => ({
+      title: n.title ?? n.headline ?? String(n),
+      link: n.link ?? n.url ?? null,
+      source: n.source ?? n.publisher ?? null,
+      publishedAt: n.providerPublishTime
+        ? new Date(n.providerPublishTime).toISOString()
+        : n.pubDate
+        ? new Date(n.pubDate).toISOString()
+        : null,
+    }));
+  } catch (error) {
+    console.error('[AssetDetail] fetchNews failed for', symbol, error);
+    return [];
+  }
+}
+
 function getRangeConfig(range: AssetDetailRange): RangeConfig {
   return RANGE_CONFIG[range] ?? RANGE_CONFIG["1M"];
 }
@@ -195,6 +226,9 @@ export async function getAssetDetailData(ticker: string, range: AssetDetailRange
     fetchProfileText(underlyingTicker ?? cedearSymbol),
   ]);
 
+  // fetch news independently (tolerant)
+  const news = await fetchNews(underlyingTicker ?? cedearSymbol);
+
   const chartPoints = mapChartPoints(cedearHistory.quotes);
   const currentPriceARS = cedearSnapshot.currentPrice;
   const companyName = asset?.name ?? cedearSnapshot.companyName;
@@ -223,6 +257,7 @@ export async function getAssetDetailData(ticker: string, range: AssetDetailRange
     cedearRatioSource,
     impliedCCL,
     about,
+    news,
     chartPoints,
     chartLabel: rangeConfig.label,
     lastUpdated: new Date().toISOString(),
