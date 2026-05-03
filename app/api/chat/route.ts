@@ -68,15 +68,13 @@ export async function POST(req: Request) {
 
     let portfolioContext = "";
     if (portfolioStatusHint === "cached_unchanged") {
-      portfolioContext = `
-[CARTERA] Sin cambios desde el último mensaje. Usa el contexto anterior para análisis.`;
+      portfolioContext = `[CARTERA] Sin cambios desde ultimo msg.`;
     } else {
       try {
         const portfolio = await getPortfolio(user.id);
         if (portfolio && portfolio.assets.length > 0) {
           const assetsDescription = portfolio.assets
             .map((asset) => {
-              const gainPerAsset = (asset.currentPrice - asset.avgBuyPrice) * asset.quantity;
               const gainPercentAsset = asset.avgBuyPrice ? ((asset.currentPrice - asset.avgBuyPrice) / asset.avgBuyPrice) * 100 : 0;
               const dailyChange = asset.dailyChangePercent ?? 0;
               const dailyLabel = dailyChange > 0 ? "📈" : dailyChange < 0 ? "📉" : "➡️";
@@ -86,22 +84,10 @@ export async function POST(req: Request) {
             .join("\n");
 
           const totalGainPercent = portfolio.gainLossPercent ?? 0;
-          const portfolioTrendLabel = totalGainPercent > 0.5 ? "📈 Alcista" : totalGainPercent < -0.5 ? "📉 Bajista" : "➡️ Neutral";
-
-          portfolioContext = `
-╔══ CARTERA ACTUAL ══╗
-Activo|Cant|Precio|Ganancia|Var24h
+          portfolioContext = `CARTERA:
+Ticker|Cant|Precio|Ganancia%|Var24h%
 ${assetsDescription}
-╠══════════════════╣
-💼 Total: ${formatARS(portfolio.totalCurrentValue)} | Invertido: ${formatARS(portfolio.totalInvested)} | Ganancia: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(totalGainPercent)}) ${portfolioTrendLabel}
-╚══════════════════╝
-
-CONTEXTO DE MERCADO: Analiza variaciones diarias (📈📉) considerando:
-- CEDEARs siguen cotización USD del mercado global
-- Acciones BCBA influenciadas por economía Argentina
-- Si hay variación negativa, explica factores (mercado global, inflación local, etc.)
-- Si hay variación positiva, menciona oportunidades de ganancia o riesgos
-- Proporciona EJEMPLOS numéricos o históricamente comunes`;
+TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.totalInvested)} | P&L: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(totalGainPercent)})`;
         }
       } catch (err) {
         console.error("Error retrieving portfolio for RAG:", err);
@@ -109,12 +95,18 @@ CONTEXTO DE MERCADO: Analiza variaciones diarias (📈📉) considerando:
     }
 
     const systemPrompt = `Sos InvertIA, asistente financiero especializado en mercado argentino.
-Usuario: ${user.name ?? "usuario"}.
-ESTILO: Conciso pero informado. NUNCA solo números.
-OBLIGATORIO incluir en cada análisis:
-- Por qué pasó (factores de mercado, economía)
-- Datos concretos (% exactos, ejemplos históricos)
-- Posibles escenarios futuros (subida/bajada tendencial)
+Usuario: ${user.name ?? "usuario"}. Mercado: CEDEARs, BCBA, Bonos.
+
+MÁXIMA BREVEDAD: Máximo 200 palabras. 2-3 párrafos.
+
+OBLIGATORIO:
+1. QUIÉN CAMBIÓ: Activo y cuanto. 1 linea con datos.
+2. POR QUÉ: Factores específicos. DATOS si existen.
+3. QUÉ ESPERAR: Rango probable o escenario.
+
+REGLAS: CERO preámbulos, saludos, introducciones. Sé directo.
+CEDEARs=USD global, BCBA=Economía Argentina.
+Sin especulación. Sin ejemplos genéricos.
 
 ${portfolioContext}`;
 
