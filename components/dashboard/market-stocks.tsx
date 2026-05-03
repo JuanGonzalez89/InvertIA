@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, LineChart } from "lucide-react"
+import Link from "next/link"
 import { Sparkline } from "./sparkline"
 import { getMarketQuotes, getMarketQuote } from "@/lib/services/market.service"
 import { formatARS, formatPercent } from "@/lib/utils"
@@ -94,13 +95,14 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
       </div>
 
       <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-3 lg:grid-cols-4">
-        {filteredStocks.length === 0 ? (
+          {filteredStocks.length === 0 ? (
           <div className="col-span-full px-5 py-10 text-sm text-muted-foreground">
             Ticket no encontrado
           </div>
         ) : filteredStocks.map((s) => (
-          <article
+          <Link
             key={s.ticker}
+            href={`/activo/${encodeURIComponent(s.ticker)}`}
             className="group flex flex-col gap-2 bg-card p-4 transition-colors hover:bg-secondary/40"
           >
             <div className="flex items-start justify-between gap-2">
@@ -139,7 +141,7 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
                 className="h-full w-full"
               />
             </div>
-          </article>
+          </Link>
         ))}
       </div>
     </section>

@@ -74,6 +74,10 @@ export function PortfolioHoldings({
     if (res.success) router.refresh()
   }
 
+  const openAssetDetail = (ticker: string) => {
+    router.push(`/activo/${encodeURIComponent(ticker)}`)
+  }
+
   return (
     <section
       id="cartera"
@@ -175,8 +179,17 @@ export function PortfolioHoldings({
             return (
               <li
                 key={asset.ticker}
+                role="button"
+                tabIndex={0}
+                onClick={() => openAssetDetail(asset.ticker)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    openAssetDetail(asset.ticker)
+                  }
+                }}
                 className={cn(
-                  "grid items-center gap-3 px-5 py-3 transition-colors hover:bg-secondary/40",
+                  "grid cursor-pointer items-center gap-3 px-5 py-3 transition-colors hover:bg-secondary/40",
                   hasActions
                     ? "grid-cols-[1.4fr_1fr_0.8fr_auto] md:grid-cols-[1.6fr_0.7fr_0.6fr_1fr_1fr_0.8fr_0.3fr]"
                     : "grid-cols-[1.6fr_1fr_0.8fr] md:grid-cols-[1.6fr_0.7fr_0.6fr_1fr_1fr_0.8fr]",
@@ -247,6 +260,7 @@ export function PortfolioHoldings({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          onClick={(event) => event.stopPropagation()}
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8 text-muted-foreground hover:text-foreground"
