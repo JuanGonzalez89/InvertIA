@@ -73,7 +73,7 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
               AI Portfolio Manager
             </h2>
             <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-              Asistente financiero · gpt-4o
+              Asistente financiero · v0-1.5-md
             </p>
           </div>
         </div>
