@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
@@ -11,7 +11,7 @@ export default function EditProfilePage() {
   const [country, setCountry] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const submit = async (e: React.FormEvent) {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     try {

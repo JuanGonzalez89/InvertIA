@@ -2,7 +2,7 @@ import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
-import { consultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
+import { createConsultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
 import { consultarPrecioMercado } from "@/lib/tools/consultar-precio-mercado";
 import { calcularMetricas } from "@/lib/tools/calcular-metricas";
 import { explicarDecision } from "@/lib/tools/explicar-decision";
@@ -68,7 +68,7 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
       messages,
       maxSteps: 5, // Fundamental para que el agente pueda encadenar llamadas a tools
       tools: {
-        consultarMiCartera,
+        consultarMiCartera: createConsultarMiCartera(user.id),
         consultarPrecioMercado,
         calcularMetricas,
         explicarDecision,
