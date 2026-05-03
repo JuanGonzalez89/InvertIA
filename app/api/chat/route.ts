@@ -1,5 +1,5 @@
-import { streamText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
+import { streamText, stepCountIs } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
 import { createConsultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
@@ -8,10 +8,9 @@ import { calcularMetricas } from "@/lib/tools/calcular-metricas";
 import { explicarDecision } from "@/lib/tools/explicar-decision";
 import { formatARS, formatPercent } from "@/lib/utils";
 
-// 1. CREAMOS EL CLIENTE PASANDO POR VERCEL AI GATEWAY
-const vercelAI = createOpenAI({
-  baseURL: process.env.AI_GATEWAY_URL, // <-- Vercel intercepta acá
-  apiKey: process.env.OPENAI_API_KEY, // <-- Y usa esta llave por detrás
+// 1. CREAMOS EL CLIENTE DE GEMINI
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 export const maxDuration = 60; // Importante para que Vercel no corte la función por timeout
@@ -61,12 +60,12 @@ Hablás en español de Argentina de forma clara, directa y profesional.
 NUNCA inventes precios. Si no podés usar una tool para consultar un precio real, decilo claramente.${portfolioContext}
 `.trim();
 
-    // 5. El stream con el modelo ruteado por el Gateway
+    // 5. El stream con el modelo Gemini
     const result = await streamText({
-      model: vercelAI("gpt-4o"), // o 'gpt-4-turbo' si prefieren
+      model: google("gemini-2.5-flash"), // u otro modelo de Gemini como gemini-2.0-pro
       system: systemPrompt,
       messages,
-      maxSteps: 5, // Fundamental para que el agente pueda encadenar llamadas a tools
+      stopWhen: stepCountIs(5), // Fundamental para que el agente pueda encadenar llamadas a tools
       tools: {
         consultarMiCartera: createConsultarMiCartera(user.id),
         consultarPrecioMercado,
@@ -75,7 +74,7 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
       },
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("[Chat API Error]:", error);
     return new Response("Error procesando la solicitud en el AI Gateway", { status: 500 });
