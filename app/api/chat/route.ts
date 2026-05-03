@@ -1,11 +1,7 @@
-import { streamText, stepCountIs, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
-import { createConsultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
-import { consultarPrecioMercado } from "@/lib/tools/consultar-precio-mercado";
-import { calcularMetricas } from "@/lib/tools/calcular-metricas";
-import { explicarDecision } from "@/lib/tools/explicar-decision";
 import { formatARS, formatPercent } from "@/lib/utils";
 
 function getGroqApiKey(): string {
@@ -98,8 +94,11 @@ Total: ${formatARS(portfolio.totalCurrentValue)} | Invertido: ${formatARS(portfo
     const systemPrompt = `Sos InvertIA, asistente financiero del mercado argentino.
 Usuario: ${user.name ?? "usuario"}.
 Especialidad: CEDEARs, Bonos, Acciones BCBA.
-Regla de oro: Sin preámbulos. Directo al análisis. Máx 15 palabras por viñeta.
-Si recibes 'cached_unchanged', asume cartera igual a msgs anteriores.${portfolioContext}`.trim();
+Instrucciones:
+- Responde directamente sin preámbulos
+- Máximo 15 palabras por viñeta/punto
+- Usa análisis factual basado en la cartera del usuario
+- Si necesitas datos específicos de mercado, pídele al usuario que te proporcione el ticker${portfolioContext}`.trim();
 
     const SLIDING_WINDOW = 6;
     const windowedMessages = messages.slice(-SLIDING_WINDOW);
@@ -110,19 +109,13 @@ Si recibes 'cached_unchanged', asume cartera igual a msgs anteriores.${portfolio
       model: groq("llama-3.3-70b-versatile"),
       system: systemPrompt,
       messages: await convertToModelMessages(windowedMessages),
-      stopWhen: stepCountIs(5),
-      tools: {
-        consultarMiCartera: createConsultarMiCartera(user.id),
-        consultarPrecioMercado,
-        calcularMetricas,
-        explicarDecision,
-      },
     });
 
     return result.toUIMessageStreamResponse({
       headers: {
         "X-RateLimit-Remaining": String(rl.remaining),
         "X-Sliding-Window": String(SLIDING_WINDOW),
+        "X-Note": "Tools disabled for Groq compatibility. Using RAG only.",
       },
     });
 
