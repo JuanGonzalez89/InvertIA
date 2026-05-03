@@ -74,7 +74,7 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
       },
     });
 
-    return result.toTextStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("[Chat API Error]:", error);
     return new Response("Error procesando la solicitud en el AI Gateway", { status: 500 });
