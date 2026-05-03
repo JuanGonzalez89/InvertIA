@@ -3,19 +3,20 @@
 import { Bot, Circle, Sparkles } from "lucide-react"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
-import { useEffect, useRef, type FormEvent } from "react"
+import { useState, useEffect, useRef, type FormEvent } from "react"
 import { useChat } from "@ai-sdk/react"
 
 export function ChatPanel({ portfolio }: { portfolio?: any }) {
+  const [input, setInput] = useState("")
+  
   const {
     messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    append,
-    isLoading,
+    sendMessage,
+    status,
     error,
-  } = useChat({ body: { cartera: portfolio } })
+  } = useChat()
+  
+  const isLoading = status === "submitted" || status === "streaming"
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const suggestedPrompts = [
@@ -28,12 +29,22 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isLoading])
 
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(event.target.value)
+  }
+
   const handleSafeSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (!input.trim()) {
-      event.preventDefault()
       return
     }
-    handleSubmit(event)
+    // Pass the body in the sendMessage options
+    sendMessage({ role: "user", parts: [{ type: 'text', text: input }] } as any, { body: { cartera: portfolio } })
+    setInput("")
+  }
+
+  const append = (msg: any) => {
+    sendMessage({ role: msg.role, parts: [{ type: 'text', text: msg.content }] } as any, { body: { cartera: portfolio } })
   }
 
   return (
@@ -101,9 +112,9 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
             </ChatMessage>
           )}
 
-          {messages.map((m) => (
+          {messages.map((m: any) => (
             <ChatMessage key={m.id} role={m.role as "user" | "assistant"}>
-              {m.content}
+              {m.parts ? m.parts.map((p: any) => p.type === 'text' ? p.text : '').join('') : m.content}
             </ChatMessage>
           ))}
 
