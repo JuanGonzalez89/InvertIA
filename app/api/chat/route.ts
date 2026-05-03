@@ -72,7 +72,7 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
     const result = await streamText({
       model: google("gemini-2.5-flash"), // u otro modelo de Gemini como gemini-2.0-pro
       system: systemPrompt,
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
       stopWhen: stepCountIs(5), // Fundamental para que el agente pueda encadenar llamadas a tools
       tools: {
         consultarMiCartera: createConsultarMiCartera(user.id),
