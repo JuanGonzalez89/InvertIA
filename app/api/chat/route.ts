@@ -23,7 +23,15 @@ export async function POST(req: Request) {
       return new Response("No autorizado", { status: 401 });
     }
 
-    const { messages } = await req.json();
+    const body = await req.json();
+    const { messages, id: chatId } = body;
+
+    // DEBUG: loguear el body completo para entender qué manda el frontend
+    console.log("[Chat API] chatId=%s messages_count=%d first_msg=%s", chatId, messages?.length ?? 0, JSON.stringify(messages?.[0]));
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return new Response("El cuerpo de la solicitud no contiene mensajes válidos.", { status: 400 });
+    }
 
     // 3. RAG: Recuperar contexto de cartera del usuario
     let portfolioContext = "";
