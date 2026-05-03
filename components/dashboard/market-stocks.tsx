@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, LineChart } from "lucide-react"
 import { Sparkline } from "./sparkline"
-import { getMarketQuotes } from "@/lib/services/market.service"
+import { getMarketQuotes, getMarketQuote } from "@/lib/services/market.service"
 import { formatARS, formatPercent } from "@/lib/utils"
 
 interface MarketStock {
@@ -43,12 +43,37 @@ export async function MarketStocks({ query }: { query?: string } = {}) {
           })
       : []
 
-  const filteredStocks = query?.trim()
+  let filteredStocks = query?.trim()
     ? stocks.filter((stock) => {
         const needle = query.trim().toLowerCase()
         return [stock.ticker, stock.name].some((value) => value.toLowerCase().includes(needle))
       })
     : stocks
+
+  // If the user provided a query and no local matches were found, attempt
+  // to fetch a single quote for the queried ticker and include it if it's ARS.
+  if (query?.trim() && filteredStocks.length === 0) {
+    try {
+      const remote = await getMarketQuote(query.trim())
+      if (remote && remote.currency === 'ARS') {
+        const changePercent = Number.isFinite(remote.changePercent) ? remote.changePercent : 0
+        const s = {
+          ticker: remote.ticker,
+          name: remote.name,
+          price: formatARS(remote.price),
+          delta: `${changePercent >= 0 ? "+" : ""}${formatPercent(changePercent)}`,
+          positive: changePercent >= 0,
+          spark: buildSparkline(remote.price, changePercent),
+        }
+        filteredStocks = [s]
+      } else {
+        // ensure empty result shows the 'Ticket no encontrado' message
+        filteredStocks = []
+      }
+    } catch (err) {
+      filteredStocks = []
+    }
+  }
 
   return (
     <section

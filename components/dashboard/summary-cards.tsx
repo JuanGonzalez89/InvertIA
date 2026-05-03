@@ -46,7 +46,7 @@ function SummaryCard({
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border bg-card p-4 transition-colors ${
+      className={`group relative overflow-hidden rounded-xl border bg-card p-4 transition-colors h-full ${
         highlight
           ? "border-primary/40 bg-gradient-to-br from-primary/[0.07] to-card"
           : "border-border hover:border-primary/30"
@@ -123,7 +123,7 @@ export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
           Actualizado hace 12s
         </span>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <SummaryCard
           label="Valor cartera"
           value={formatARS(portfolio.totalCurrentValue)}

@@ -6,7 +6,7 @@ import { ChatInput } from "./chat-input"
 import { useEffect, useRef, type FormEvent } from "react"
 import { useChat } from "@ai-sdk/react"
 
-export function ChatPanel() {
+export function ChatPanel({ portfolio }: { portfolio?: any }) {
   const {
     messages,
     input,
@@ -15,7 +15,7 @@ export function ChatPanel() {
     append,
     isLoading,
     error,
-  } = useChat()
+  } = useChat({ body: { cartera: portfolio } })
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const suggestedPrompts = [

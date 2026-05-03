@@ -1,6 +1,9 @@
 import { Bot, Lightbulb, ShieldCheck, Zap } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ChatPanel } from "@/components/chat/chat-panel"
+import { SuggestedPrompts } from "@/components/chat/suggested-prompts"
+import { getCurrentUser } from "@/lib/auth/get-current-user"
+import { getPortfolio } from "@/lib/services/portfolio.service"
 
 const CAPABILITIES = [
   {
@@ -46,7 +49,9 @@ export default function ChatPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ChatPanel />
+          {/* Fetch portfolio server-side and pass serializable data to the ChatPanel */}
+          {/* Note: getCurrentUser and getPortfolio execute on the server */}
+          <AsyncChatPanel />
         </div>
 
         <aside className="space-y-6" aria-label="Capacidades y sugerencias">
@@ -92,21 +97,32 @@ export default function ChatPage() {
             >
               Sugerencias para empezar
             </h2>
-            <ul className="mt-3 flex flex-col gap-2">
-              {PROMPTS.map((p) => (
-                <li key={p}>
-                  <button
-                    type="button"
-                    className="w-full rounded-lg border border-border bg-background/40 px-3 py-2 text-left text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-secondary/40"
-                  >
-                    {p}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {/* Client-side suggested prompts that append to the chat via useChat */}
+            <div className="mt-3">
+              {/* @ts-ignore Async server -> client */}
+              <SuggestedPrompts prompts={PROMPTS} />
+            </div>
           </section>
         </aside>
       </div>
     </div>
   )
+}
+
+async function AsyncChatPanel() {
+  const user = await getCurrentUser()
+  if (!user) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6">
+        <p className="text-sm text-muted-foreground">Iniciá sesión para acceder al chat y enlazar tu cartera.</p>
+      </div>
+    )
+  }
+
+  const portfolio = await getPortfolio(user.id)
+
+  // ChatPanel is a client component; pass portfolio as serializable prop
+  // so the client-side `useChat` hook can receive it and inject into requests.
+  // @ts-ignore-next-line ServerComponent
+  return <ChatPanel portfolio={portfolio} />
 }
