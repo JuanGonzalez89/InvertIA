@@ -1,9 +1,10 @@
 'use client';
 
 import { memo } from 'react';
-import { ReactMarkdown, ReactMarkdownProps } from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
+import type { Options } from 'react-markdown';
 
-export const MemoizedReactMarkdown: React.FC<ReactMarkdownProps> = memo(
+export const MemoizedReactMarkdown: React.FC<Options> = memo(
   ReactMarkdown,
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
