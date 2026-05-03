@@ -12,7 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 type SearchItem = {
   ticker: string
@@ -73,6 +73,10 @@ export function MarketSearch() {
       </DialogTrigger>
 
       <DialogContent className="max-w-xl p-0">
+        <DialogTitle className="sr-only">Buscar activos</DialogTitle>
+        <DialogDescription className="sr-only">
+          Buscá CEDEARs, acciones de BCBA o bonos por ticker o nombre.
+        </DialogDescription>
         <Command shouldFilter={false} className="rounded-lg border-0 shadow-none">
           <CommandInput
             placeholder="Escribí ticker o nombre"
