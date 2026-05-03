@@ -9,8 +9,10 @@ import { explicarDecision } from "@/lib/tools/explicar-decision";
 import { formatARS, formatPercent } from "@/lib/utils";
 
 // 1. CREAMOS EL CLIENTE DE GEMINI
+// Soporta tanto GEMINI_API_KEY como la variable estándar GOOGLE_GENERATIVE_AI_API_KEY
+const geminiApiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: geminiApiKey,
 });
 
 export const maxDuration = 60; // Importante para que Vercel no corte la función por timeout
