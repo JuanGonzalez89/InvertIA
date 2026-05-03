@@ -1,5 +1,5 @@
 import { streamText, stepCountIs, convertToModelMessages } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
 import { createConsultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
@@ -8,28 +8,10 @@ import { calcularMetricas } from "@/lib/tools/calcular-metricas";
 import { explicarDecision } from "@/lib/tools/explicar-decision";
 import { formatARS, formatPercent } from "@/lib/utils";
 
-// ─── Multi-Key Rotation ────────────────────────────────────────────────────────
-// Soporta hasta 5 keys via GEMINI_API_KEY, GEMINI_API_KEY_2 ... GEMINI_API_KEY_5
-// Cada key free tier tiene 10 RPM → 3 keys = 30 RPM efectivos.
-// Generá keys gratis en: https://aistudio.google.com/app/apikey
-function getApiKeys(): string[] {
-  const keys: string[] = [];
-  const k1 = process.env.GEMINI_API_KEY;
-  if (k1) keys.push(k1);
-  for (let i = 2; i <= 5; i++) {
-    const k = process.env[`GEMINI_API_KEY_${i}`];
-    if (k) keys.push(k);
-  }
-  if (keys.length === 0) throw new Error("No se encontró ninguna GEMINI_API_KEY en las variables de entorno.");
-  return keys;
-}
-
-// Selección Aleatoria: distribuye requests entre todas las keys.
-// En entornos Serverless (Vercel), un contador global se resetea. 
-// La selección aleatoria es la forma más robusta de rotar sin estado.
-function getRandomKey(keys: string[]): { key: string; index: number } {
-  const index = Math.floor(Math.random() * keys.length);
-  return { key: keys[index], index };
+function getGroqApiKey(): string {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error("No se encontró GROQ_API_KEY en las variables de entorno.");
+  return key;
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -58,13 +40,11 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number; 
 
 export async function POST(req: Request) {
   try {
-    // 2. Autenticación
     const user = await getCurrentUser();
     if (!user) {
       return new Response("No autorizado", { status: 401 });
     }
 
-    // 3. Rate limiting (app-side, protección contra abuso)
     const rl = checkRateLimit(user.id);
     if (!rl.allowed) {
       const secsLeft = Math.ceil(rl.resetIn / 1000);
@@ -72,72 +52,64 @@ export async function POST(req: Request) {
         `Límite alcanzado. Podés volver a preguntar en ${secsLeft} segundos.`,
         {
           status: 429,
-          headers: {
-            "Retry-After": String(secsLeft),
-            "X-RateLimit-Limit": String(RATE_LIMIT),
-            "X-RateLimit-Remaining": "0",
-          },
+          headers: { "Retry-After": String(secsLeft) },
         }
       );
     }
 
     const body = await req.json();
-    const { messages, id: chatId } = body;
+    let { messages, id: chatId } = body;
+    const portfolioStatusHint = body.portfolio_status;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response("El cuerpo de la solicitud no contiene mensajes válidos.", { status: 400 });
     }
 
-    // 4. Seleccionar API key (aleatorio entre todas las configuradas)
-    const keys = getApiKeys();
-    const { key: apiKey, index: keyIndex } = getRandomKey(keys);
-
     console.log(
-      "[Chat API] provider=gemini model=gemini-2.5-flash keyIdx=%d/%d chatId=%s msgs=%d rl_rem=%d",
-      keyIndex + 1, keys.length, chatId, messages?.length ?? 0, rl.remaining
+      "[Chat API] provider=groq model=llama-3.3-70b-versatile chatId=%s msgs=%d status=%s rl_rem=%d",
+      chatId, messages.length, portfolioStatusHint ?? "normal", rl.remaining
     );
 
-    // 5. RAG: Recuperar contexto de cartera del usuario
     let portfolioContext = "";
-    try {
-      const portfolio = await getPortfolio(user.id);
-      if (portfolio && portfolio.assets.length > 0) {
-        const assetsDescription = portfolio.assets
-          .map(
-            (asset) =>
-              `- ${asset.ticker} (${asset.type}): ${asset.quantity} unidades @ ${formatARS(asset.currentPrice)} c/u (compra promedio: ${formatARS(asset.avgBuyPrice)})`
-          )
-          .join("\n");
+    if (portfolioStatusHint === "cached_unchanged") {
+      portfolioContext = `
+Nota: La cartera del usuario no ha cambiado desde el último mensaje. Úsala según el contexto anterior.`;
+    } else {
+      try {
+        const portfolio = await getPortfolio(user.id);
+        if (portfolio && portfolio.assets.length > 0) {
+          const assetsDescription = portfolio.assets
+            .map(
+              (asset) =>
+                `${asset.ticker}\t${asset.quantity}\t${formatARS(asset.currentPrice)}\t${formatARS(asset.avgBuyPrice)}`
+            )
+            .join("\n");
 
-        portfolioContext = `
-
-CONTEXTO DE CARTERA DEL USUARIO (Información Actual):
-- Valor total de cartera: ${formatARS(portfolio.totalCurrentValue)}
-- Total invertido: ${formatARS(portfolio.totalInvested)}
-- Ganancia/Pérdida: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(portfolio.gainLossPercent)})
-- Activos en cartera:
-${assetsDescription}`;
+          portfolioContext = `
+CARTERA (${new Date().toLocaleTimeString()}):
+${assetsDescription}
+Total: ${formatARS(portfolio.totalCurrentValue)} | Invertido: ${formatARS(portfolio.totalInvested)} | Ganancia: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(portfolio.gainLossPercent)})`;
+        }
+      } catch (err) {
+        console.error("Error retrieving portfolio for RAG:", err);
       }
-    } catch (err) {
-      console.error("Error retrieving portfolio for RAG:", err);
     }
 
-    // 6. Prompt Maestro del Agente
-    const systemPrompt = `
-Sos InvertIA, un asistente financiero especializado en el mercado argentino (CEDEARs, Bonos, Acciones de la BCBA).
-El nombre del usuario es: ${user.name ?? "usuario"}.
-Tu rol es ayudar a gestionar la cartera y analizar el mercado.
-Hablás en español de Argentina de forma clara, directa y profesional.
-NUNCA inventes precios. Si no podés usar una tool para consultar un precio real, decilo claramente.${portfolioContext}
-`.trim();
+    const systemPrompt = `Sos InvertIA, asistente financiero del mercado argentino.
+Usuario: ${user.name ?? "usuario"}.
+Especialidad: CEDEARs, Bonos, Acciones BCBA.
+Regla de oro: Sin preámbulos. Directo al análisis. Máx 15 palabras por viñeta.
+Si recibes 'cached_unchanged', asume cartera igual a msgs anteriores.${portfolioContext}`.trim();
 
-    // 7. Stream con Gemini 2.5 Flash (key rotada)
-    const google = createGoogleGenerativeAI({ apiKey });
+    const SLIDING_WINDOW = 6;
+    const windowedMessages = messages.slice(-SLIDING_WINDOW);
+
+    const groq = createGroq({ apiKey: getGroqApiKey() });
 
     const result = await streamText({
-      model: google("gemini-2.5-flash"),
+      model: groq("llama-3.3-70b-versatile"),
       system: systemPrompt,
-      messages: await convertToModelMessages(messages),
+      messages: await convertToModelMessages(windowedMessages),
       stopWhen: stepCountIs(5),
       tools: {
         consultarMiCartera: createConsultarMiCartera(user.id),
@@ -149,9 +121,8 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
 
     return result.toUIMessageStreamResponse({
       headers: {
-        "X-RateLimit-Limit": String(RATE_LIMIT),
         "X-RateLimit-Remaining": String(rl.remaining),
-        "X-Gemini-Keys-Count": String(keys.length),
+        "X-Sliding-Window": String(SLIDING_WINDOW),
       },
     });
 
@@ -162,32 +133,28 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
 
     console.error("[Chat API Error] type=%s message=%s", err?.constructor?.name ?? "unknown", message);
 
-    // Rate limit de Gemini (429): sucede si todas las keys están saturadas a la vez
-    if (err?.status === 429 || errStr.includes("rate limit") || errStr.includes("quota") || errStr.includes("resource_exhausted")) {
+    if (err?.status === 429 || errStr.includes("rate limit") || errStr.includes("quota")) {
       return new Response(
-        "Todas las APIs están al límite en este momento. Esperá unos segundos e intentá de nuevo.",
+        "API Groq al límite. Esperá 10s e intentá de nuevo.",
         { status: 429, headers: { "Retry-After": "10" } }
       );
     }
 
-    // API key inválida
-    if (err?.status === 401 || err?.status === 403 || errStr.includes("api_key") || errStr.includes("unauthorized") || errStr.includes("api key")) {
+    if (err?.status === 401 || err?.status === 403 || errStr.includes("api_key")) {
       return new Response(
-        "Error de autenticación con Gemini. Verificá las variables GEMINI_API_KEY en el entorno.",
+        "Error de autenticación con Groq. Verificá GROQ_API_KEY.",
         { status: 503 }
       );
     }
 
-    // Solicitud inválida
-    if (err?.status === 400 || errStr.includes("invalid") || errStr.includes("bad request")) {
+    if (err?.status === 400 || errStr.includes("invalid")) {
       return new Response(`El modelo rechazó la solicitud: ${message}`, { status: 400 });
     }
 
-    // Error de base de datos
     if (errStr.includes("prisma") || errStr.includes("econnrefused") || errStr.includes("database")) {
-      return new Response("No se pudo conectar a la base de datos. Verificá DATABASE_URL.", { status: 503 });
+      return new Response("Error de BD. Verificá DATABASE_URL.", { status: 503 });
     }
 
-    return new Response(`Error interno del servidor: ${message}`, { status: 500 });
+    return new Response(`Error interno: ${message}`, { status: 500 });
   }
 }

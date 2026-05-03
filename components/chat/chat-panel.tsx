@@ -3,12 +3,34 @@
 import { Bot, Circle, Sparkles } from "lucide-react"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
-import { useState, useEffect, useRef, type FormEvent } from "react"
+import { useState, useEffect, useRef, useMemo, type FormEvent } from "react"
 import { useChat } from "@ai-sdk/react"
+
+function portfolioToTSV(portfolio: any): string {
+  if (!portfolio?.assets || portfolio.assets.length === 0) return "";
+  return portfolio.assets
+    .map(
+      (a: any) => `${a.ticker}\t${a.quantity}\t${a.currentPrice}\t${a.avgBuyPrice}`
+    )
+    .join("\n");
+}
 
 export function ChatPanel({ portfolio }: { portfolio?: any }) {
   const [input, setInput] = useState("")
   const [serverError, setServerError] = useState<string | null>(null)
+  
+  const lastPortfolioTSVRef = useRef<string>("");
+
+  const portfolioTSV = useMemo(() => portfolioToTSV(portfolio), [portfolio]);
+
+  const portfolioStatus = useMemo(() => {
+    if (!portfolioTSV) return "no_portfolio";
+    if (portfolioTSV === lastPortfolioTSVRef.current) {
+      return "cached_unchanged";
+    }
+    lastPortfolioTSVRef.current = portfolioTSV;
+    return "updated";
+  }, [portfolioTSV]);
   
   const {
     messages,
@@ -17,7 +39,6 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
     error,
   } = useChat({
     onError: async (err: any) => {
-      // Leer el mensaje real del servidor desde el body de la respuesta
       const rawMessage = err?.message ?? "Error desconocido"
       setServerError(rawMessage)
     },
@@ -46,13 +67,19 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
       return
     }
     setServerError(null)
-    sendMessage({ text: input }, { body: { cartera: portfolio } })
+    sendMessage(
+      { text: input },
+      { body: { portfolio_status: portfolioStatus } }
+    )
     setInput("")
   }
 
   const append = (msg: any) => {
     setServerError(null)
-    sendMessage({ text: msg.content }, { body: { cartera: portfolio } })
+    sendMessage(
+      { text: msg.content },
+      { body: { portfolio_status: portfolioStatus } }
+    )
   }
 
   return (
