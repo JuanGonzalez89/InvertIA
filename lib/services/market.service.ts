@@ -18,13 +18,24 @@ const DEFAULT_TRACKED_TICKERS = [
   "AMZN.BA",    // Amazon
   "META.BA",    // Meta
   "TSLA.BA",    // Tesla
+  "AMD.BA",     // AMD
+  "KO.BA",      // Coca-Cola
+  "SPY.BA",     // S&P 500 ETF
+  "YPFD.BA",    // YPF coverage in CEDEAR list
   "MELI",       // Mercado Libre (ya cotiza en BCBA, no necesita .BA)
+  "QQQ.BA",     // Nasdaq ETF
+  "NFLX.BA",    // Netflix
+  "DIS.BA",     // Disney
+  "XOM.BA",     // Exxon
   
   // Acciones BCBA locales
   "GGAL",       // Grupo Galicia
   "VIST",       // Vista
   "YPF",        // YPF
   "BMA",        // Banco Macro
+  "SUPV",       // Supervielle
+  "PAMP",       // Pampa Energía
+  "TGSU2",      // TGS
 ] as const;
 
 async function fetchQuoteForSymbol(symbol: string) {

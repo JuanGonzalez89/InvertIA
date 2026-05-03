@@ -21,6 +21,8 @@ export async function POST(req: Request) {
   let processed = 0
 
   try {
+    await db.position.deleteMany({ where: { userId: dbUser.id } })
+
     for (const r of rows) {
       const ticker = (r.ticker || '').toString().toUpperCase().trim()
       const qty = Number(r.quantity) || 0

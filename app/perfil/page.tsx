@@ -1,13 +1,13 @@
 import {
   Bell,
   KeyRound,
-  ShieldCheck,
   UserCircle2,
 } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ProfileCard } from "@/components/dashboard/profile-card"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { ProfileInlineDetails } from "@/components/dashboard/profile-inline-details"
+import { TwoFactorSecurityCard } from "@/components/dashboard/two-factor-security-card"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getPortfolio } from "@/lib/services/portfolio.service"
 import { redirect } from "next/navigation"
@@ -20,19 +20,11 @@ const PREFERENCES = [
     icon: Bell,
     title: "Notificaciones",
     desc: "Alertas de movimientos y noticias relevantes.",
-    enabled: true,
-  },
-  {
-    icon: ShieldCheck,
-    title: "Verificación en dos pasos",
-    desc: "Capa extra de seguridad al iniciar sesión.",
-    enabled: true,
   },
   {
     icon: KeyRound,
     title: "Sesiones activas",
     desc: "Revisá los dispositivos con acceso a tu cuenta.",
-    enabled: false,
   },
 ]
 
@@ -66,6 +58,7 @@ export default async function PerfilPage() {
   }
 
   const portfolio = await getPortfolio(user.id)
+  const twoFactorEnabled = Boolean((user as any).twoFactorEnabled)
 
   return (
     <>
@@ -110,6 +103,7 @@ export default async function PerfilPage() {
               </h2>
             </div>
             <ul className="divide-y divide-border">
+              <TwoFactorSecurityCard enabled={twoFactorEnabled} />
               {PREFERENCES.map((p) => {
                 const Icon = p.icon
                 return (
@@ -130,14 +124,8 @@ export default async function PerfilPage() {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`inline-flex shrink-0 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-wider ${
-                        p.enabled
-                          ? "bg-primary/10 text-primary"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      {p.enabled ? "Activo" : "Configurar"}
+                    <span className="inline-flex shrink-0 rounded-md bg-secondary px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Ver
                     </span>
                   </li>
                 )

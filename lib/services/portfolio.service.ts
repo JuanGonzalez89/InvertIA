@@ -43,10 +43,11 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     let totalCurrentValue = 0;
 
     const mappedAssets = positions.map((pos: any) => {
-      // Calcular valores: aquí asumimos que avgPrice está en la misma moneda que la posición
+      // Solo usamos cotización externa cuando viene en ARS; si no, preservamos el precio importado.
       const invested = pos.quantity * pos.avgPrice;
       const quote = quoteMap.get(pos.id);
-      const currentPrice = quote?.price ?? pos.avgPrice;
+      const externalPriceIsARS = quote?.currency === 'ARS';
+      const currentPrice = externalPriceIsARS ? quote?.price ?? pos.avgPrice : pos.avgPrice;
       const currentValue = pos.quantity * currentPrice;
 
       totalInvested += invested;
@@ -62,7 +63,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
         currentPrice,
         currency: pos.asset.currency,
         dailyChangePercent:
-          quote && pos.avgPrice > 0
+          quote && externalPriceIsARS && pos.avgPrice > 0
             ? ((currentPrice / pos.avgPrice) - 1) * 100
             : 0,
       };

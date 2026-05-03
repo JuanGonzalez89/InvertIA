@@ -12,6 +12,7 @@ type AppUser = {
   baseCurrency: BaseCurrency;
   phone?: string | null;
   country?: string | null;
+  twoFactorEnabled?: boolean;
 };
 
 export type DbUser = Awaited<ReturnType<typeof syncCurrentUserWithDatabase>>;
@@ -30,6 +31,7 @@ function buildFallbackUser(user: Awaited<ReturnType<typeof currentUser>>): AppUs
     baseCurrency: "ARS",
     phone: null,
     country: null,
+    twoFactorEnabled: Boolean(user?.publicMetadata?.twoFactorEnabled),
   };
 }
 
@@ -64,7 +66,10 @@ export async function syncCurrentUserWithDatabase() {
   });
 
   if (byExternalId) {
-    return byExternalId;
+    return {
+      ...byExternalId,
+      twoFactorEnabled: Boolean(user.publicMetadata?.twoFactorEnabled),
+    };
   }
 
   const byEmail = await db.user.findUnique({
@@ -72,7 +77,7 @@ export async function syncCurrentUserWithDatabase() {
   });
 
   if (byEmail) {
-    return await db.user.update({
+    const updatedUser = await db.user.update({
       where: { id: byEmail.id },
       data: {
         externalAuthId: user.id,
@@ -80,9 +85,14 @@ export async function syncCurrentUserWithDatabase() {
         avatarUrl: user.imageUrl,
       },
     });
+
+    return {
+      ...updatedUser,
+      twoFactorEnabled: Boolean(user.publicMetadata?.twoFactorEnabled),
+    };
   }
 
-  return await db.user.create({
+  const createdUser = await db.user.create({
     data: {
       externalAuthId: user.id,
       name: fallbackUser.name,
@@ -90,4 +100,9 @@ export async function syncCurrentUserWithDatabase() {
       avatarUrl: user.imageUrl,
     },
   });
+
+  return {
+    ...createdUser,
+    twoFactorEnabled: Boolean(user.publicMetadata?.twoFactorEnabled),
+  };
 }

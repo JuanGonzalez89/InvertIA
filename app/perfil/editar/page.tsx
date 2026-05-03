@@ -55,7 +55,7 @@ export default function EditProfilePage() {
 
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Guardar'}</Button>
-          <Button variant="outline" onClick={()=>router.push('/perfil')}>Cancelar</Button>
+          <Button type="button" variant="outline" onClick={()=>router.push('/perfil')}>Cancelar</Button>
         </div>
       </form>
     </div>
