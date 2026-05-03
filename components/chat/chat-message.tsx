@@ -1,5 +1,8 @@
 import { User, Bot } from "lucide-react"
+import remarkGfm from "remark-gfm"
+import remarkBreaks from "remark-breaks"
 import { cn } from "@/lib/utils"
+import { MemoizedReactMarkdown } from "./markdown"
 
 interface ChatMessageProps {
   role: "user" | "assistant"
@@ -29,7 +32,15 @@ export function ChatMessage({ role, children }: ChatMessageProps) {
             : "bg-secondary text-foreground",
         )}
       >
-        {children}
+        {isUser ? (
+          children
+        ) : typeof children === "string" ? (
+          <MemoizedReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+            {children}
+          </MemoizedReactMarkdown>
+        ) : (
+          children
+        )}
       </div>
     </div>
   )
