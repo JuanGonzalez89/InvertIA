@@ -3,6 +3,15 @@ import { createGroq } from "@ai-sdk/groq";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
 import { formatARS, formatPercent } from "@/lib/utils";
+import { QUOTE_FIELDS, toBCBASymbol, yahooFinance } from "@/lib/yahoo";
+
+type FreshMarketQuote = {
+  ticker: string;
+  price: number;
+  changePercent: number;
+  currency: string;
+  name: string;
+};
 
 function getGroqApiKey(): string {
   const key = process.env.GROQ_API_KEY;
@@ -33,6 +42,85 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number; 
   return { allowed: true, remaining: RATE_LIMIT - entry.count, resetIn: entry.resetAt - now };
 }
 // ──────────────────────────────────────────────────────────────────────────────
+
+function extractRelevantTickers(messages: unknown[]): string[] {
+  const text = messages
+    .flatMap((message: any) => {
+      if (typeof message?.content === "string") return message.content;
+      if (Array.isArray(message?.parts)) {
+        return message.parts
+          .filter((part: any) => part?.type === "text" && typeof part?.text === "string")
+          .map((part: any) => part.text)
+          .join(" ");
+      }
+      return "";
+    })
+    .join(" ")
+    .toUpperCase();
+
+  const aliases: Record<string, string> = {
+    "VISTA ENERGY": "VIST",
+    "GRUPO GALICIA": "GGAL",
+    "GALICIA": "GGAL",
+    "MERCADO LIBRE": "MELI",
+    "NVIDIA": "NVDA",
+    "APPLE": "AAPL",
+    "MICROSOFT": "MSFT",
+    "AMAZON": "AMZN",
+    "GOOGLE": "GOOGL",
+    "TESLA": "TSLA",
+    "META": "META",
+  };
+
+  const found = new Set<string>();
+
+  for (const [label, ticker] of Object.entries(aliases)) {
+    if (text.includes(label)) {
+      found.add(ticker);
+    }
+  }
+
+  const regexMatches = text.match(/\b[A-Z]{2,6}(?:\.[A-Z]{2})?\b/g) ?? [];
+  for (const match of regexMatches) {
+    found.add(match);
+  }
+
+  return Array.from(found).slice(0, 8);
+}
+
+async function getFreshMarketQuote(ticker: string): Promise<FreshMarketQuote | null> {
+  const symbol = toBCBASymbol(ticker);
+
+  try {
+    const quote = await yahooFinance.quote(symbol, { fields: QUOTE_FIELDS });
+
+    if (!quote.regularMarketPrice) {
+      return null;
+    }
+
+    return {
+      ticker: symbol,
+      price: quote.regularMarketPrice,
+      changePercent: quote.regularMarketChangePercent ?? 0,
+      currency: symbol.endsWith(".BA") ? "ARS" : quote.currency ?? "ARS",
+      name: quote.shortName ?? symbol,
+    };
+  } catch (error) {
+    console.error("[Chat API] Yahoo quote failed for", symbol, error);
+    return null;
+  }
+}
+
+function formatMarketSnapshot(quotes: FreshMarketQuote[]): string {
+  if (quotes.length === 0) return "";
+
+  return quotes
+    .map((quote) => {
+      const sign = quote.changePercent > 0 ? "+" : "";
+      return `${quote.ticker} | ${quote.name} | ${formatARS(quote.price)} | ${sign}${quote.changePercent.toFixed(2)}% | ${quote.currency}`;
+    })
+    .join("\n");
+}
 
 export async function POST(req: Request) {
   try {
@@ -67,12 +155,15 @@ export async function POST(req: Request) {
     );
 
     let portfolioContext = "";
+    let marketContext = "";
+    let portfolioTickers: string[] = [];
     if (portfolioStatusHint === "cached_unchanged") {
       portfolioContext = `[CARTERA] Sin cambios desde ultimo msg.`;
     } else {
       try {
         const portfolio = await getPortfolio(user.id);
         if (portfolio && portfolio.assets.length > 0) {
+          portfolioTickers = portfolio.assets.map((asset) => asset.ticker);
           const assetsDescription = portfolio.assets
             .map((asset) => {
               const gainPercentAsset = asset.avgBuyPrice ? ((asset.currentPrice - asset.avgBuyPrice) / asset.avgBuyPrice) * 100 : 0;
@@ -92,6 +183,16 @@ TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.to
       } catch (err) {
         console.error("Error retrieving portfolio for RAG:", err);
       }
+    }
+
+    const messageTickers = extractRelevantTickers(messages);
+    const freshTickers = Array.from(new Set([...portfolioTickers, ...messageTickers])).slice(0, 8);
+
+    if (freshTickers.length > 0) {
+      const freshQuotes = (await Promise.all(freshTickers.map((ticker) => getFreshMarketQuote(ticker)))).filter(
+        (quote): quote is FreshMarketQuote => quote !== null
+      );
+      marketContext = formatMarketSnapshot(freshQuotes);
     }
 
     const systemPrompt = `Sos InvertIA, asistente financiero especializado en mercado argentino.
@@ -118,12 +219,20 @@ SALUDO O PRESENTACIÓN:
   2. qué hacés
   3. cómo ayudás con la cartera
 
+FUENTE DE VERDAD DEL MERCADO:
+- Los datos debajo vienen de Yahoo Finance y son la referencia actual.
+- Si el usuario pregunta por un activo incluido abajo, usá esos datos.
+- No inventes precios ni variaciones.
+
 EJEMPLO DE FORMATO:
 1. No hay cambios en tu cartera: YPF 10un a $30.000,00 y NVDA 2un a $38.500,00.
 
 2. Estás expuesto a energía y tecnología, con poca diversificación.
 
 3. Sumaría bonos argentinos para bajar riesgo y monitorearía YPF y NVDA.
+
+MERCADO ACTUAL YAHOO FINANCE:
+${marketContext || "Sin snapshot de mercado disponible."}
 
 ${portfolioContext}`;
 

@@ -7,7 +7,38 @@
 
 import { db } from '@/lib/prisma';
 import type { Portfolio, Order, AgentContext } from '@/lib/types/portfolio';
-import { getMarketQuote, type MarketQuoteSnapshot } from './market.service';
+import { QUOTE_FIELDS, toBCBASymbol, yahooFinance } from '@/lib/yahoo';
+
+type FreshMarketQuoteSnapshot = {
+  ticker: string;
+  name: string;
+  price: number;
+  currency: string;
+  changePercent: number;
+};
+
+async function getFreshMarketQuote(symbol: string): Promise<FreshMarketQuoteSnapshot | null> {
+  const candidate = toBCBASymbol(symbol);
+
+  try {
+    const quote = await yahooFinance.quote(candidate, { fields: QUOTE_FIELDS });
+
+    if (!quote.regularMarketPrice) {
+      return null;
+    }
+
+    return {
+      ticker: candidate,
+      name: quote.shortName ?? candidate,
+      price: quote.regularMarketPrice,
+      currency: candidate.endsWith('.BA') ? 'ARS' : quote.currency ?? 'ARS',
+      changePercent: quote.regularMarketChangePercent ?? 0,
+    };
+  } catch (error) {
+    console.error('[PortfolioService] getFreshMarketQuote failed:', candidate, error);
+    return null;
+  }
+}
 
 // No demo mock data here — production should read from DB. Keep implementation minimal.
 
@@ -31,14 +62,14 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     });
 
     // Obtener precios para todas las posiciones
-    const quoteEntries: Array<[string, MarketQuoteSnapshot | null]> = await Promise.all(
+    const quoteEntries: Array<[string, FreshMarketQuoteSnapshot | null]> = await Promise.all(
       positions.map(async (pos: any) => {
-        const quote = await getMarketQuote(pos.asset.yahooSymbol || pos.asset.symbol);
+        const quote = await getFreshMarketQuote(pos.asset.yahooSymbol || pos.asset.symbol);
         return [pos.id, quote];
       })
     );
 
-    const quoteMap = new Map<string, MarketQuoteSnapshot | null>(quoteEntries);
+    const quoteMap = new Map<string, FreshMarketQuoteSnapshot | null>(quoteEntries);
     let totalInvested = 0;
     let totalCurrentValue = 0;
 
