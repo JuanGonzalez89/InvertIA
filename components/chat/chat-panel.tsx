@@ -8,13 +8,20 @@ import { useChat } from "@ai-sdk/react"
 
 export function ChatPanel({ portfolio }: { portfolio?: any }) {
   const [input, setInput] = useState("")
+  const [serverError, setServerError] = useState<string | null>(null)
   
   const {
     messages,
     sendMessage,
     status,
     error,
-  } = useChat()
+  } = useChat({
+    onError: async (err: any) => {
+      // Leer el mensaje real del servidor desde el body de la respuesta
+      const rawMessage = err?.message ?? "Error desconocido"
+      setServerError(rawMessage)
+    },
+  })
   
   const isLoading = status === "submitted" || status === "streaming"
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -38,12 +45,13 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
     if (!input.trim()) {
       return
     }
-    // Pass the body in the sendMessage options
+    setServerError(null) // limpiar error anterior al reintentar
     sendMessage({ role: "user", parts: [{ type: 'text', text: input }] } as any, { body: { cartera: portfolio } })
     setInput("")
   }
 
   const append = (msg: any) => {
+    setServerError(null)
     sendMessage({ role: msg.role, parts: [{ type: 'text', text: msg.content }] } as any, { body: { cartera: portfolio } })
   }
 
@@ -106,9 +114,9 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
             </div>
           )}
 
-          {error && (
+          {(error || serverError) && (
             <ChatMessage role="assistant">
-              No pude responder por un problema del servidor. Verifica sesion activa y configuracion de base de datos en Vercel, luego intenta de nuevo.
+              ⚠️ {serverError ?? "Error de conexión con el servidor. Intentá de nuevo."}
             </ChatMessage>
           )}
 
