@@ -69,36 +69,54 @@ export async function POST(req: Request) {
     let portfolioContext = "";
     if (portfolioStatusHint === "cached_unchanged") {
       portfolioContext = `
-Nota: La cartera del usuario no ha cambiado desde el último mensaje. Úsala según el contexto anterior.`;
+[CARTERA] Sin cambios desde el último mensaje. Usa el contexto anterior para análisis.`;
     } else {
       try {
         const portfolio = await getPortfolio(user.id);
         if (portfolio && portfolio.assets.length > 0) {
           const assetsDescription = portfolio.assets
-            .map(
-              (asset) =>
-                `${asset.ticker}\t${asset.quantity}\t${formatARS(asset.currentPrice)}\t${formatARS(asset.avgBuyPrice)}`
-            )
+            .map((asset) => {
+              const gainPerAsset = (asset.currentPrice - asset.avgBuyPrice) * asset.quantity;
+              const gainPercentAsset = asset.avgBuyPrice ? ((asset.currentPrice - asset.avgBuyPrice) / asset.avgBuyPrice) * 100 : 0;
+              const dailyChange = asset.dailyChangePercent ?? 0;
+              const dailyLabel = dailyChange > 0 ? "📈" : dailyChange < 0 ? "📉" : "➡️";
+              
+              return `${asset.ticker}|${asset.quantity}un|${formatARS(asset.currentPrice)}|${gainPercentAsset > 0 ? "+" : ""}${gainPercentAsset.toFixed(1)}%|${dailyLabel}${dailyChange.toFixed(2)}%`;
+            })
             .join("\n");
 
+          const totalGainPercent = portfolio.gainLossPercent ?? 0;
+          const portfolioTrendLabel = totalGainPercent > 0.5 ? "📈 Alcista" : totalGainPercent < -0.5 ? "📉 Bajista" : "➡️ Neutral";
+
           portfolioContext = `
-CARTERA (${new Date().toLocaleTimeString()}):
+╔══ CARTERA ACTUAL ══╗
+Activo|Cant|Precio|Ganancia|Var24h
 ${assetsDescription}
-Total: ${formatARS(portfolio.totalCurrentValue)} | Invertido: ${formatARS(portfolio.totalInvested)} | Ganancia: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(portfolio.gainLossPercent)})`;
+╠══════════════════╣
+💼 Total: ${formatARS(portfolio.totalCurrentValue)} | Invertido: ${formatARS(portfolio.totalInvested)} | Ganancia: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(totalGainPercent)}) ${portfolioTrendLabel}
+╚══════════════════╝
+
+CONTEXTO DE MERCADO: Analiza variaciones diarias (📈📉) considerando:
+- CEDEARs siguen cotización USD del mercado global
+- Acciones BCBA influenciadas por economía Argentina
+- Si hay variación negativa, explica factores (mercado global, inflación local, etc.)
+- Si hay variación positiva, menciona oportunidades de ganancia o riesgos
+- Proporciona EJEMPLOS numéricos o históricamente comunes`;
         }
       } catch (err) {
         console.error("Error retrieving portfolio for RAG:", err);
       }
     }
 
-    const systemPrompt = `Sos InvertIA, asistente financiero del mercado argentino.
+    const systemPrompt = `Sos InvertIA, asistente financiero especializado en mercado argentino.
 Usuario: ${user.name ?? "usuario"}.
-Especialidad: CEDEARs, Bonos, Acciones BCBA.
-Instrucciones:
-- Responde directamente sin preámbulos
-- Máximo 15 palabras por viñeta/punto
-- Usa análisis factual basado en la cartera del usuario
-- Si necesitas datos específicos de mercado, pídele al usuario que te proporcione el ticker${portfolioContext}`.trim();
+ESTILO: Conciso pero informado. NUNCA solo números.
+OBLIGATORIO incluir en cada análisis:
+- Por qué pasó (factores de mercado, economía)
+- Datos concretos (% exactos, ejemplos históricos)
+- Posibles escenarios futuros (subida/bajada tendencial)
+
+${portfolioContext}`;
 
     const SLIDING_WINDOW = 6;
     const windowedMessages = messages.slice(-SLIDING_WINDOW);
