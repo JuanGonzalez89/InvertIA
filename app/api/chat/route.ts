@@ -12,6 +12,7 @@ import { formatARS, formatPercent } from "@/lib/utils";
 const v0 = createOpenAI({
   baseURL: "https://api.v0.dev/v1",
   apiKey: process.env.V0_API_KEY,
+  compatibility: "compatible", // Fuerza /chat/completions en vez del nuevo /responses endpoint
 });
 
 export const maxDuration = 60;
