@@ -1,4 +1,4 @@
-import { streamText, stepCountIs } from "ai";
+import { streamText, stepCountIs, convertToCoreMessages } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
@@ -64,7 +64,7 @@ NUNCA inventes precios. Si no podés usar una tool para consultar un precio real
     const result = await streamText({
       model: google("gemini-2.5-flash"), // u otro modelo de Gemini como gemini-2.0-pro
       system: systemPrompt,
-      messages,
+      messages: convertToCoreMessages(messages),
       stopWhen: stepCountIs(5), // Fundamental para que el agente pueda encadenar llamadas a tools
       tools: {
         consultarMiCartera: createConsultarMiCartera(user.id),
