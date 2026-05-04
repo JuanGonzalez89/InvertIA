@@ -137,15 +137,29 @@ function shouldBypassTools(latestUserText: string): boolean {
     return true;
   }
 
-  const greetingOnly = /^(hola|hola!|hola\.|buenas|buenas!|buen día|buen dia|hey|hello|hi|saludos)(\s*[!.,]*)?$/i.test(
-    normalized
-  );
+  const greetingStart = /^(hola|buenas|hey|hello|hi|saludos)\b/i.test(normalized);
 
-  if (!greetingOnly) {
+  if (!greetingStart) {
     return false;
   }
 
-  return !/[a-z0-9]/i.test(normalized.replace(/^(hola|hola!|hola\.|buenas|buenas!|buen día|buen dia|hey|hello|hi|saludos)(\s*[!.,]*)?/i, ""));
+  const hasFinanceIntent = /(\b[a-z]{2,6}(?:\.[a-z]{2})?\b|cedear|cedears|acción|acciones|bono|bonos|cartera|mercado|precio|rendimiento|comparar|comparación|historial|noticias|analiz|gráfico|grafico)/i.test(
+    normalized
+  );
+
+  return !hasFinanceIntent;
+}
+
+function isFinancialIntent(latestUserText: string): boolean {
+  const normalized = latestUserText.toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return /\b(comparar|comparación|comparacion|rendimiento|historial|histórico|historico|noticias|analiz|analizar|análisis|analisis|precio|cotiz|cotización|cotizacion|cartera|mercado|bono|bonos|cedear|cedears|acción|acciones|portfolio|inversión|inversion|compra|venta|ganancia|pérdida|perdida|merval|dow jones|nasdaq|s&p|sp500)\b/i.test(
+    normalized
+  ) || /\b[A-Z]{2,6}(?:\.[A-Z]{2})?\b/.test(latestUserText);
 }
 
 async function getFreshMarketQuote(ticker: string): Promise<FreshMarketQuote | null> {
@@ -183,6 +197,8 @@ function formatMarketSnapshot(quotes: FreshMarketQuote[]): string {
 }
 
 export async function POST(req: Request) {
+  let latestUserTextForFallback = "";
+
   try {
     const isLocalTest = req.headers.get("x-test-bypass") === "local-dev-only";
     const user = isLocalTest
@@ -252,20 +268,26 @@ TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.to
     const SLIDING_WINDOW = 6;
     const windowedMessages = messages.slice(-SLIDING_WINDOW);
     const latestUserText = getLatestUserText(windowedMessages);
+    latestUserTextForFallback = latestUserText;
     const bypassTools = shouldBypassTools(latestUserText);
+    const financialIntent = isFinancialIntent(latestUserText);
 
     const groq = createGroq({ apiKey: getGroqApiKey() });
 
     if (bypassTools) {
-      const smallTalkPrompt = `Sos InvertIA, un asistente financiero profesional y cordial.
+      const smallTalkPrompt = `Sos InvertIA, un asistente cordial y conversacional.
 Respondé breve, natural y en español rioplatense.
 No uses herramientas ni inventes datos financieros.
-Si el usuario solo saluda, devolvé un saludo corto y ofrecé ayuda sobre cartera, mercado o movimientos.`;
+Si el usuario saluda, respondé con un saludo corto y amable.
+Si pregunta quién sos o qué podés hacer, explicalo en una sola frase clara.
+No menciones precios, tickers, noticias ni análisis financiero salvo que el usuario lo pida explícitamente.`;
+
+      const greetingMessages = [{ role: "user" as const, content: latestUserText }];
 
       const smallTalkResult = await streamText({
         model: groq("llama-3.3-70b-versatile"),
         system: smallTalkPrompt,
-        messages: await convertToModelMessages(windowedMessages),
+        messages: await convertToModelMessages(greetingMessages),
       });
 
       return smallTalkResult.toUIMessageStreamResponse({
@@ -273,6 +295,28 @@ Si el usuario solo saluda, devolvé un saludo corto y ofrecé ayuda sobre carter
           "X-RateLimit-Remaining": String(rl.remaining),
           "X-Sliding-Window": String(SLIDING_WINDOW),
           "X-Note": "Small-talk fallback without tools.",
+        },
+      });
+    }
+
+    if (!financialIntent) {
+      const generalPrompt = `Sos InvertIA, un asistente conversacional útil y claro.
+Respondé en español rioplatense, de forma breve y natural.
+Si el usuario pregunta quién sos o qué funcionalidades tenés, describilo de manera simple.
+Si la consulta no es financiera, respondé normalmente sin usar herramientas ni inventar datos.
+Si el usuario mezcla temas, contestá sólo la parte general y pedí aclaración para la parte financiera.`;
+
+      const generalResult = await streamText({
+        model: groq("llama-3.3-70b-versatile"),
+        system: generalPrompt,
+        messages: await convertToModelMessages(windowedMessages),
+      });
+
+      return generalResult.toUIMessageStreamResponse({
+        headers: {
+          "X-RateLimit-Remaining": String(rl.remaining),
+          "X-Sliding-Window": String(SLIDING_WINDOW),
+          "X-Note": "General chat fallback without tools.",
         },
       });
     }
@@ -293,6 +337,24 @@ Usuario: ${user.name ?? "usuario"}. Mercado: CEDEARs, BCBA, Bonos.
 TU MISIÓN:
 Proporcionar análisis financieros profundos, técnicos y visuales. No te limites a leer números; explica el "por qué".
 
+SI EL USUARIO SOLO SALUDA O HACE CHITCHAT:
+- Respondé de forma humana, cálida y breve.
+- No muestres datos financieros ni uses herramientas.
+- Podés devolver un saludo y una pregunta corta del estilo "¿en qué te ayudo?".
+
+HERRAMIENTAS DISPONIBLES EXACTAMENTE:
+- getHistoricalPerformance: rendimiento histórico de un ticker.
+- getLatestNews: noticias recientes de un ticker.
+- consultarPrecioMercado: precio puntual.
+- consultarMiCartera: datos de cartera del usuario.
+- calcularMetricas: métricas derivadas.
+- explicarDecision: explicación de una decisión.
+
+IMPORTANTE:
+- No inventes nombres de herramientas.
+- No intentes usar herramientas para saludos, identidad o preguntas generales.
+- Si no hace falta una herramienta, respondé con texto normal.
+
 REGLAS CRÍTICAS DE HERRAMIENTAS:
 1. SIEMPRE que te pidan "COMPARAR", "MOSTRAR GRÁFICO" O "VER RENDIMIENTO", **DEBÉS** llamar a getHistoricalPerformance.
 2. Si es una COMPARACIÓN (ej: ALUA vs TXAR), llamá a getHistoricalPerformance DOS VECES (una para cada ticker) en el MISMO PASO.
@@ -300,8 +362,9 @@ REGLAS CRÍTICAS DE HERRAMIENTAS:
 4. NUNCA inventes números. Si la herramienta falla, explícalo técnicamente.
 
 ESTILO DE RESPUESTA:
-- Directo, profesional y basado en datos.
-- Usá una lista numerada para conclusiones.
+- Directo, profesional y basado en datos cuando haya consulta financiera.
+- Cuando sea un saludo, respondé conversacionalmente sin formato técnico.
+- Usá una lista numerada para conclusiones sólo cuando estés analizando datos.
 - El usuario espera ver los gráficos automáticos. Sé breve en el texto.
 - Máximo 150 palabras.
 
@@ -428,6 +491,27 @@ ${portfolioContext}`;
     const errStr = message.toLowerCase();
 
     console.error("[Chat API Error] type=%s message=%s", err?.constructor?.name ?? "unknown", message);
+
+    if (errStr.includes("failed_generation") || errStr.includes("tool call validation failed")) {
+      const groq = createGroq({ apiKey: getGroqApiKey() });
+      const recoveryPrompt = `Sos InvertIA. Respondé de forma breve, cordial y en español rioplatense.
+No uses herramientas.
+Si el usuario saludó o preguntó algo general, contestá normalmente y ofrecé ayuda sobre finanzas o sobre quién sos y qué hacés.`;
+
+      const recoveryResult = await streamText({
+        model: groq("llama-3.3-70b-versatile"),
+        system: recoveryPrompt,
+        messages: latestUserTextForFallback
+          ? await convertToModelMessages([{ role: "user" as const, content: latestUserTextForFallback }])
+          : [],
+      });
+
+      return recoveryResult.toUIMessageStreamResponse({
+        headers: {
+          "X-Note": "Recovered from invalid tool call generation.",
+        },
+      });
+    }
 
     if (err?.status === 429 || errStr.includes("rate limit") || errStr.includes("quota")) {
       return new Response(
