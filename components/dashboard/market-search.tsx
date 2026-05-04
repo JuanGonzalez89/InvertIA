@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 
@@ -19,6 +19,16 @@ type SearchItem = {
   name: string
   category: string
 }
+
+type RemoteSearchItem = {
+  ticker: string
+  name: string
+  exchange?: string | null
+  type?: string | null
+  market?: "local" | "global"
+}
+
+type SearchScope = "both" | "local" | "global"
 
 const ITEMS: SearchItem[] = [
   { ticker: "AAPL", name: "Apple Inc.", category: "CEDEAR" },
@@ -48,6 +58,9 @@ export function MarketSearch() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
+  const [scope, setScope] = useState<SearchScope>("both")
+  const [remoteResults, setRemoteResults] = useState<RemoteSearchItem[]>([])
+  const [isSearching, setIsSearching] = useState(false)
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -61,6 +74,75 @@ export function MarketSearch() {
       )
     }).slice(0, 10)
   }, [query])
+
+  useEffect(() => {
+    const needle = query.trim()
+
+    if (!needle) {
+      setRemoteResults([])
+      setIsSearching(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      setIsSearching(true)
+
+      try {
+        const response = await fetch(`/api/market/search?query=${encodeURIComponent(needle)}&scope=${scope}`, {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        setRemoteResults(Array.isArray(data?.results) ? data.results : [])
+      } catch (error) {
+        if ((error as any)?.name !== "AbortError") {
+          setRemoteResults([])
+        }
+      } finally {
+        setIsSearching(false)
+      }
+    }, 220)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [query, scope])
+
+  useEffect(() => {
+    if (!open) {
+      setScope("both")
+    }
+  }, [open])
+
+  const groupedRemoteResults = useMemo(() => {
+    const seen = new Set<string>()
+    const uniqueResults = remoteResults.filter((item) => {
+      const key = item.ticker.toUpperCase()
+      if (seen.has(key)) {
+        return false
+      }
+      seen.add(key)
+      return true
+    })
+
+    return {
+      local: uniqueResults.filter((item) => item.market === "local"),
+      global: uniqueResults.filter((item) => item.market === "global"),
+      all: uniqueResults,
+    }
+  }, [remoteResults])
+
+  const visibleRemoteResults = scope === "local"
+    ? groupedRemoteResults.local
+    : scope === "global"
+      ? groupedRemoteResults.global
+      : groupedRemoteResults.all
 
   const selectItem = (ticker: string) => {
     setOpen(false)
@@ -94,24 +176,119 @@ export function MarketSearch() {
             value={query}
             onValueChange={setQuery}
           />
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              Mercado
+            </span>
+            <div className="inline-flex rounded-full border border-border bg-background/80 p-1 shadow-sm">
+              {([
+                { key: "both", label: "Ambos" },
+                { key: "local", label: "Local" },
+                { key: "global", label: "Global" },
+              ] as const).map((option) => {
+                const active = scope === option.key
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => setScope(option.key)}
+                    className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <CommandList>
-            {query.length > 0 && !filtered.some(i => i.ticker.toLowerCase() === query.toLowerCase()) && (
-              <CommandGroup heading="Búsqueda global">
-                <CommandItem onSelect={() => selectItem(query.toUpperCase())}>
-                  <div className="flex w-full items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Search className="h-3.5 w-3.5 text-primary" />
-                      <span className="font-mono text-sm font-semibold text-primary">{query.toUpperCase()}</span>
+            {query.length > 0 && visibleRemoteResults.length > 0 && scope !== "both" && (
+              <CommandGroup heading={scope === "local" ? "Mercado local" : "Mercado global"}>
+                {visibleRemoteResults.map((item) => (
+                  <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker)}>
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                          <Search className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex min-w-0 flex-col items-start">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-sm font-semibold text-primary">{item.ticker}</span>
+                            <span className="rounded-full border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {item.market === "local" ? "ARS" : "USD"}
+                            </span>
+                          </div>
+                          <span className="truncate text-xs text-muted-foreground">{item.name}</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Buscar en Yahoo Finance
-                    </span>
-                  </div>
-                </CommandItem>
+                  </CommandItem>
+                ))}
               </CommandGroup>
             )}
 
-            <CommandEmpty>No encontramos sugerencias. Presioná Enter para buscar <b>{query}</b>.</CommandEmpty>
+            {query.length > 0 && visibleRemoteResults.length > 0 && scope === "both" && (
+              <>
+                {groupedRemoteResults.local.length > 0 && (
+                  <CommandGroup heading="Mercado local">
+                    {groupedRemoteResults.local.map((item) => (
+                      <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker)}>
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                              <Search className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="flex min-w-0 flex-col items-start">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-mono text-sm font-semibold text-primary">{item.ticker}</span>
+                                <span className="rounded-full border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                                  ARS
+                                </span>
+                              </div>
+                              <span className="truncate text-xs text-muted-foreground">{item.name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {groupedRemoteResults.global.length > 0 && (
+                  <CommandGroup heading="Mercado global">
+                    {groupedRemoteResults.global.map((item) => (
+                      <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker)}>
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                              <Search className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="flex min-w-0 flex-col items-start">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-mono text-sm font-semibold text-primary">{item.ticker}</span>
+                                <span className="rounded-full border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                                  USD
+                                </span>
+                              </div>
+                              <span className="truncate text-xs text-muted-foreground">{item.name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+              </>
+            )}
+
+            <CommandEmpty>
+              {isSearching
+                ? "Buscando..."
+                : `No encontramos sugerencias. Presioná Enter para buscar ${query}.`}
+            </CommandEmpty>
 
             <CommandGroup heading="Sugerencias del mercado">
               {filtered.map((item) => (
