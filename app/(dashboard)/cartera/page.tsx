@@ -48,12 +48,38 @@ export default async function CarteraPage() {
   // Ahora sacamos los datos reales desde la BD
   const portfolio = await getPortfolio(user.id)
 
-  const ALLOCATION = [
-    { label: "Acciones", value: formatARS(0), pct: 0, color: "bg-primary" },
-    { label: "Bonos", value: formatARS(0), pct: 0, color: "bg-chart-4" },
-    { label: "CEDEARs", value: formatARS(0), pct: 0, color: "bg-chart-3" },
-    { label: "ETFs", value: formatARS(0), pct: 0, color: "bg-secondary" },
-  ] // TODO: Dynamic map en Fase 4
+  // Cálculo dinámico de distribución por tipo
+  const allocationMap = portfolio.assets.reduce((acc, asset) => {
+    const type = asset.type || 'OTRO';
+    const value = asset.quantity * (asset.currentPrice || 0);
+    acc[type] = (acc[type] || 0) + value;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const ALLOCATION = Object.entries(allocationMap).map(([type, value]) => {
+    const labels: Record<string, string> = {
+      'STOCK': 'Acciones',
+      'BOND': 'Bonos',
+      'CEDEAR': 'CEDEARs',
+      'ETF': 'ETFs',
+      'OTRO': 'Otros'
+    };
+    const colors: Record<string, string> = {
+      'STOCK': 'bg-primary',
+      'BOND': 'bg-chart-4',
+      'CEDEAR': 'bg-chart-3',
+      'ETF': 'bg-secondary',
+      'OTRO': 'bg-zinc-500'
+    };
+    const pct = portfolio.totalCurrentValue > 0 ? (value / portfolio.totalCurrentValue) * 100 : 0;
+    
+    return {
+      label: labels[type] || type,
+      value: formatARS(value),
+      pct,
+      color: colors[type] || 'bg-zinc-500'
+    };
+  }).sort((a, b) => b.pct - a.pct);
 
   const safeGainLossPercent =
     portfolio.totalInvested > 0 && Number.isFinite(portfolio.gainLossPercent)

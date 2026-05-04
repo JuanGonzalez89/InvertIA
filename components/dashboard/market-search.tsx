@@ -21,18 +21,27 @@ type SearchItem = {
 }
 
 const ITEMS: SearchItem[] = [
-  { ticker: "AAPL", name: "Apple", category: "Acción" },
-  { ticker: "MSFT", name: "Microsoft", category: "Acción" },
-  { ticker: "NVDA", name: "NVIDIA", category: "Acción" },
-  { ticker: "GOOGL", name: "Alphabet", category: "Acción" },
-  { ticker: "AMZN", name: "Amazon", category: "Acción" },
-  { ticker: "META", name: "Meta", category: "Acción" },
-  { ticker: "TSLA", name: "Tesla", category: "Acción" },
-  { ticker: "MELI", name: "MercadoLibre", category: "Acción" },
-  { ticker: "GGAL", name: "Galicia", category: "BCBA" },
-  { ticker: "VIST", name: "Vista Energy", category: "BCBA" },
-  { ticker: "YPF", name: "YPF", category: "BCBA" },
+  { ticker: "AAPL", name: "Apple Inc.", category: "CEDEAR" },
+  { ticker: "MSFT", name: "Microsoft Corp.", category: "CEDEAR" },
+  { ticker: "NVDA", name: "NVIDIA Corporation", category: "CEDEAR" },
+  { ticker: "GOOGL", name: "Alphabet Inc.", category: "CEDEAR" },
+  { ticker: "AMZN", name: "Amazon.com Inc.", category: "CEDEAR" },
+  { ticker: "META", name: "Meta Platforms Inc.", category: "CEDEAR" },
+  { ticker: "TSLA", name: "Tesla, Inc.", category: "CEDEAR" },
+  { ticker: "MELI", name: "MercadoLibre, Inc.", category: "CEDEAR" },
+  { ticker: "PEP", name: "Pepsico, Inc.", category: "CEDEAR" },
+  { ticker: "KO", name: "Coca-Cola Co.", category: "CEDEAR" },
+  { ticker: "BABA", name: "Alibaba Group", category: "CEDEAR" },
+  { ticker: "NFLX", name: "Netflix, Inc.", category: "CEDEAR" },
+  { ticker: "GGAL", name: "Grupo Financiero Galicia", category: "Acción" },
+  { ticker: "YPFD", name: "YPF S.A.", category: "Acción" },
+  { ticker: "PAMP", name: "Pampa Energía", category: "Acción" },
+  { ticker: "ALUA", name: "Aluar", category: "Acción" },
+  { ticker: "TXAR", name: "Ternium Argentina", category: "Acción" },
+  { ticker: "VIST", name: "Vista Energy", category: "Acción" },
   { ticker: "TX26", name: "Bono TX26", category: "Bono" },
+  { ticker: "AL30", name: "Bono AL30", category: "Bono" },
+  { ticker: "GD30", name: "Bono GD30", category: "Bono" },
 ]
 
 export function MarketSearch() {
@@ -42,19 +51,21 @@ export function MarketSearch() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (!needle) return ITEMS
+    if (!needle) return ITEMS.slice(0, 8)
 
     return ITEMS.filter((item) => {
-      return [item.ticker, item.name, item.category].some((value) =>
-        value.toLowerCase().includes(needle)
+      return (
+        item.ticker.toLowerCase().includes(needle) ||
+        item.name.toLowerCase().includes(needle) ||
+        item.category.toLowerCase().includes(needle)
       )
-    })
+    }).slice(0, 10)
   }, [query])
 
   const selectItem = (ticker: string) => {
     setOpen(false)
     setQuery("")
-    router.push(`/mercado?query=${encodeURIComponent(ticker)}`)
+    router.push(`/activo/${encodeURIComponent(ticker)}`)
   }
 
   return (
@@ -84,8 +95,25 @@ export function MarketSearch() {
             onValueChange={setQuery}
           />
           <CommandList>
-            <CommandEmpty>No encontramos coincidencias.</CommandEmpty>
-            <CommandGroup heading="Sugerencias">
+            {query.length > 0 && !filtered.some(i => i.ticker.toLowerCase() === query.toLowerCase()) && (
+              <CommandGroup heading="Búsqueda global">
+                <CommandItem onSelect={() => selectItem(query.toUpperCase())}>
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Search className="h-3.5 w-3.5 text-primary" />
+                      <span className="font-mono text-sm font-semibold text-primary">{query.toUpperCase()}</span>
+                    </div>
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Buscar en Yahoo Finance
+                    </span>
+                  </div>
+                </CommandItem>
+              </CommandGroup>
+            )}
+
+            <CommandEmpty>No encontramos sugerencias. Presioná Enter para buscar <b>{query}</b>.</CommandEmpty>
+
+            <CommandGroup heading="Sugerencias del mercado">
               {filtered.map((item) => (
                 <CommandItem key={item.ticker} onSelect={() => selectItem(item.ticker)}>
                   <div className="flex w-full items-center justify-between gap-3">

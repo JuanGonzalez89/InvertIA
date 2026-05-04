@@ -15,6 +15,7 @@ export interface Asset {
   currentPrice: number;   // Precio actual (lo llenará el MCP en Fase 4)
   currency: 'ARS' | 'USD'; // Moneda del activo (CEDEARs y BCBA locales = ARS, Bonos USD = USD)
   dailyChangePercent: number;
+  totalGainPercent: number;
   sparkline?: number[];
 }
 
@@ -26,6 +27,8 @@ export interface Portfolio {
   totalCurrentValue: number; // Calculado
   totalGainLoss: number;  // Calculado
   gainLossPercent: number; // Calculado
+  lastMarketUpdate?: string; // ISO String o descripción del estado
+  warnings?: string[]; // Advertencias sobre los datos (ej: rendimientos absurdos)
 }
 
 export interface Order {

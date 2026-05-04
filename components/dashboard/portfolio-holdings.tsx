@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  PlusIcon,
 } from "lucide-react"
 import { Sparkline } from "./sparkline"
 import type { Asset } from "@/lib/types/portfolio"
@@ -15,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn, formatARS } from "@/lib/utils"
@@ -48,28 +50,28 @@ export function PortfolioHoldings({
   const handleEmptyPortfolio = async () => {
     if (!userId) return
     if (!confirm("¿Estás seguro de que quieres vaciar toda tu cartera?")) return
-    
+
     const promise = clearPortfolio(userId)
     toast.promise(promise, {
       loading: 'Vaciando cartera...',
       success: 'Cartera vaciada correctamente',
       error: 'Error al vaciar la cartera'
     })
-    
+
     const res = await promise
     if (res.success) router.refresh()
   }
 
   const handleDeletePosition = async (id: string) => {
     if (!confirm("¿Eliminar este activo de tu cartera?")) return
-    
+
     const promise = deletePosition(id)
     toast.promise(promise, {
       loading: 'Eliminando activo...',
       success: 'Activo eliminado',
       error: 'Error al eliminar el activo'
     })
-    
+
     const res = await promise
     if (res.success) router.refresh()
   }
@@ -94,8 +96,19 @@ export function PortfolioHoldings({
             {list.length} activos
           </span>
         </div>
-        {showActions ? (
-          hasActions ? (
+        <div className="flex items-center gap-2">
+          {userId && (
+            <NewTransactionDialog 
+              userId={userId} 
+              trigger={
+                <Button size="sm" className="h-8 gap-1.5">
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  Agregar
+                </Button>
+              }
+            />
+          )}
+          {showActions && hasActions && (
             <Button
               size="sm"
               variant="outline"
@@ -103,17 +116,10 @@ export function PortfolioHoldings({
               className="h-8 border-border bg-transparent text-muted-foreground hover:bg-secondary"
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              Vaciar Cartera
+              Vaciar
             </Button>
-          ) : null
-        ) : (
-          <a
-            href="#"
-            className="font-mono text-[11px] text-muted-foreground transition-colors hover:text-primary"
-          >
-            Ver todo →
-          </a>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Table header */}
@@ -235,10 +241,9 @@ export function PortfolioHoldings({
                     {formatARS(total)}
                   </div>
                   <div
-                      className={`inline-flex items-center justify-end gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${
-                        positive
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-red-500/10 text-red-500"
+                    className={`inline-flex items-center justify-end gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${positive
+                        ? "bg-emerald-500/10 text-emerald-500"
+                        : "bg-red-500/10 text-red-500"
                       }`}
                   >
                     {positive ? (
@@ -256,7 +261,7 @@ export function PortfolioHoldings({
                 </div>
 
                 {hasActions && (
-                  <div className="flex justify-end">
+                  <div className="flex justify-end items-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -274,6 +279,7 @@ export function PortfolioHoldings({
                           <Pencil className="h-4 w-4" aria-hidden />
                           Modificar cantidad
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="gap-2 text-red-500 focus:text-red-500"
                           onClick={() => handleDeletePosition(asset.id)}

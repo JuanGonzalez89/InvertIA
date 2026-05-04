@@ -15,6 +15,7 @@ type FreshMarketQuoteSnapshot = {
   price: number;
   currency: string;
   changePercent: number;
+  marketTime?: number;
 };
 
 async function getFreshMarketQuote(symbol: string): Promise<FreshMarketQuoteSnapshot | null> {
@@ -23,7 +24,8 @@ async function getFreshMarketQuote(symbol: string): Promise<FreshMarketQuoteSnap
   try {
     const quote = await yahooFinance.quote(candidate, { fields: QUOTE_FIELDS });
 
-    if (!quote.regularMarketPrice) {
+    if (!quote || typeof quote.regularMarketPrice !== 'number') {
+      console.warn(`[PortfolioService] No se encontró precio para: ${candidate}`);
       return null;
     }
 
@@ -33,6 +35,7 @@ async function getFreshMarketQuote(symbol: string): Promise<FreshMarketQuoteSnap
       price: quote.regularMarketPrice,
       currency: candidate.endsWith('.BA') ? 'ARS' : quote.currency ?? 'ARS',
       changePercent: quote.regularMarketChangePercent ?? 0,
+      marketTime: quote.regularMarketTime ? new Date(quote.regularMarketTime).getTime() : undefined,
     };
   } catch (error) {
     console.error('[PortfolioService] getFreshMarketQuote failed:', candidate, error);
@@ -84,24 +87,44 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       totalInvested += invested;
       totalCurrentValue += currentValue;
 
+      const totalGainPercent = pos.avgPrice > 0 ? ((currentPrice / pos.avgPrice) - 1) * 100 : 0;
+
       return {
-        id: pos.id,
-        ticker: pos.asset.symbol,
-        name: pos.asset.name,
+        id: pos.id as string,
+        ticker: pos.asset.symbol as string,
+        name: pos.asset.name as string,
         type: pos.asset.type as any,
-        quantity: pos.quantity,
-        avgBuyPrice: pos.avgPrice,
-        currentPrice,
-        currency: pos.asset.currency,
-        dailyChangePercent:
-          quote && externalPriceIsARS && pos.avgPrice > 0
-            ? ((currentPrice / pos.avgPrice) - 1) * 100
-            : 0,
+        quantity: pos.quantity as number,
+        avgBuyPrice: pos.avgPrice as number,
+        currentPrice: currentPrice as number,
+        currency: pos.asset.currency as 'ARS' | 'USD',
+        dailyChangePercent: (quote?.changePercent ?? 0) as number,
+        totalGainPercent: totalGainPercent as number,
       };
     });
 
     const totalGainLoss = totalCurrentValue - totalInvested;
     const gainLossPercent = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
+
+    const warnings: string[] = [];
+    if (gainLossPercent > 500) {
+      warnings.push("Rendimiento total inusualmente alto (>500%). Revisá tus precios de compra.");
+    }
+
+    // Detectar activos individuales con ganancias absurdas (>1000%)
+    mappedAssets.forEach((a: any) => {
+      if (a.totalGainPercent > 1000) {
+        warnings.push(`El activo ${a.ticker} muestra una ganancia de +${a.totalGainPercent.toFixed(0)}%. Posible error en precio promedio.`);
+      }
+    });
+
+    const maxMarketTime = quoteEntries.length > 0
+      ? Math.max(...quoteEntries.map(([_, q]) => q?.marketTime ?? 0))
+      : 0;
+
+    const lastMarketUpdate = maxMarketTime > 0
+      ? new Date(maxMarketTime).toISOString()
+      : new Date().toISOString();
 
     return {
       userId,
@@ -110,7 +133,9 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       totalCurrentValue,
       totalGainLoss,
       gainLossPercent,
-      assets: mappedAssets
+      assets: mappedAssets,
+      lastMarketUpdate,
+      warnings
     };
   } catch (error) {
     console.error('[PortfolioService] getPortfolio failed:', error);
@@ -159,24 +184,42 @@ export async function executeOrder(
   ticker: string,
   quantity: number,
   pricePerUnit: number,
-  type: 'BUY' | 'SELL'
+  type: 'BUY' | 'SELL',
+  assetType?: 'CEDEAR' | 'ACCION' | 'BONO' | 'ETF' | 'OTRO'
 ): Promise<{ success: boolean; updatedPortfolio: Portfolio; order: Order }> {
   try {
     // 1. Obtener o crear el activo en la DB
+    const cleanTicker = ticker.toUpperCase().trim();
     let asset = await db.asset.findUnique({
-      where: { symbol: ticker.toUpperCase() }
+      where: { symbol: cleanTicker }
     });
 
     if (!asset) {
-      // Intentamos crear un activo genérico si no existe
+      console.log(`[PortfolioService] Creando nuevo activo: ${cleanTicker}`);
+      // Heurística para yahooSymbol: si ya tiene punto, asumimos que está completo
+      const yahooSymbol = cleanTicker.includes('.') 
+        ? cleanTicker 
+        : `${cleanTicker}.BA`;
+
+      // Mapear tipos de UI a tipos de DB
+      const dbTypeMap: Record<string, any> = {
+        'CEDEAR': 'CEDEAR',
+        'ACCION': 'STOCK',
+        'BONO': 'BOND',
+        'ETF': 'ETF',
+        'OTRO': 'STOCK'
+      };
+      
+      const dbType = dbTypeMap[assetType || 'OTRO'] || 'STOCK';
+
       asset = await db.asset.create({
         data: {
-          symbol: ticker.toUpperCase(),
-          name: ticker.toUpperCase(),
-          type: 'STOCK',
-          market: 'BCBA',
+          symbol: cleanTicker,
+          name: cleanTicker,
+          type: dbType,
+          market: 'BCBA', // Por defecto mercado argentino
           currency: 'ARS',
-          yahooSymbol: ticker.toUpperCase() + '.BA'
+          yahooSymbol: yahooSymbol
         }
       });
     }
@@ -207,7 +250,7 @@ export async function executeOrder(
         // Promediamos el precio de compra
         const newQuantity = existingPosition.quantity + quantity;
         const newAvgPrice = ((existingPosition.quantity * existingPosition.avgPrice) + (quantity * pricePerUnit)) / newQuantity;
-        
+
         await db.position.update({
           where: { id: existingPosition.id },
           data: { quantity: newQuantity, avgPrice: newAvgPrice }
@@ -228,7 +271,7 @@ export async function executeOrder(
       if (!existingPosition || existingPosition.quantity < quantity) {
         throw new Error('Cantidad insuficiente para vender');
       }
-      
+
       const newQuantity = existingPosition.quantity - quantity;
       if (newQuantity === 0) {
         await db.position.delete({ where: { id: existingPosition.id } });
@@ -249,8 +292,8 @@ export async function executeOrder(
       await db.cashBalance.update({
         where: { id: cashBalance.id },
         data: {
-          amount: type === 'BUY' 
-            ? cashBalance.amount - totalAmount 
+          amount: type === 'BUY'
+            ? cashBalance.amount - totalAmount
             : cashBalance.amount + totalAmount
         }
       });

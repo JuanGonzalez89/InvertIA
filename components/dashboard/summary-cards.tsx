@@ -6,6 +6,7 @@ import {
   PiggyBank,
   TrendingUp,
   Wallet,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react"
 import type { Portfolio } from "@/lib/types/portfolio"
@@ -46,29 +47,26 @@ function SummaryCard({
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border bg-card p-4 transition-colors h-full ${
-        highlight
+      className={`group relative overflow-hidden rounded-xl border bg-card p-4 transition-colors h-full ${highlight
           ? "border-primary/40 bg-gradient-to-br from-primary/[0.07] to-card"
           : "border-border hover:border-primary/30"
-      }`}
+        }`}
     >
       <div className="flex items-center justify-between">
         <div
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-            highlight
+          className={`flex h-8 w-8 items-center justify-center rounded-lg ${highlight
               ? "bg-primary text-primary-foreground"
               : "bg-secondary text-primary"
-          }`}
+            }`}
         >
           <Icon className="h-4 w-4" aria-hidden />
         </div>
         {delta && (
           <span
-            className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${
-              positive
+            className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${positive
                 ? "bg-emerald-500/10 text-emerald-500"
                 : "bg-red-500/10 text-red-500"
-            }`}
+              }`}
           >
             {positive ? (
               <ArrowUpRight className="h-3 w-3" aria-hidden />
@@ -110,6 +108,14 @@ export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
     safeGainLossPercent,
   )}`
 
+  // Lógica de "Actualizado" basada en datos reales
+  const lastUpdate = portfolio.lastMarketUpdate ? new Date(portfolio.lastMarketUpdate) : new Date();
+  const isWeekend = [0, 6].includes(new Date().getDay());
+
+  const updateLabel = isWeekend
+    ? `Cierre de mercado (${lastUpdate.toLocaleDateString("es-AR", { day: 'numeric', month: 'short' })})`
+    : `Vivo: hace ${Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s`;
+
   return (
     <section aria-labelledby="summary-title">
       <div className="mb-3 flex items-center justify-between">
@@ -119,9 +125,20 @@ export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
         >
           Resumen general
         </h2>
-        <span className="font-mono text-[11px] text-muted-foreground/70">
-          Actualizado hace 12s
-        </span>
+        <div className="flex items-center gap-3">
+          {portfolio.warnings && portfolio.warnings.length > 0 && (
+            <div
+              className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-500 ring-1 ring-amber-500/20"
+              title={portfolio.warnings.join(". ")}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              Inconsistencia detectada
+            </div>
+          )}
+          <span className="font-mono text-[11px] text-muted-foreground/70">
+            {updateLabel}
+          </span>
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <SummaryCard

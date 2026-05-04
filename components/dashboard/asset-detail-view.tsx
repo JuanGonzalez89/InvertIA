@@ -8,6 +8,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatARS, formatPercent } from "@/lib/utils";
+import { NewsImpactCard } from "./news-impact-card";
 import type { AssetDetailData, AssetDetailRange } from "@/lib/services/asset-detail.service";
 
 type AssetDetailViewProps = {
@@ -336,34 +337,34 @@ export function AssetDetailView({ ticker }: AssetDetailViewProps) {
         />
       </section>
       <section className="rounded-xl border border-border bg-card p-5">
-        <div className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
-          <BarChart3 className="h-3.5 w-3.5 text-primary" />
-          Últimas noticias
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-bold">
+            <BarChart3 className="h-3.5 w-3.5 text-primary" />
+            Noticias y Contexto
+          </div>
         </div>
-        {data.news && data.news.length > 0 ? (
-          <div className="space-y-4">
-            {/* Highlight latest */}
-            <article className="rounded-md border border-border bg-background/40 p-4">
-              <a href={data.news[0].link ?? '#'} target="_blank" rel="noreferrer" className="text-foreground no-underline hover:underline">
-                <h3 className="text-lg font-semibold">{data.news[0].title}</h3>
-              </a>
-              <div className="mt-2 text-sm text-muted-foreground">
-                {data.news[0].source ? `${data.news[0].source} · ` : ''}
-                {data.news[0].publishedAt ? new Date(data.news[0].publishedAt).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : ''}
-              </div>
-            </article>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {data.news.slice(1, 5).map((n, idx) => (
-                <a key={idx} href={n.link ?? '#'} target="_blank" rel="noreferrer" className="block rounded-md border border-border bg-card p-3 hover:bg-secondary/20">
-                  <div className="font-semibold text-foreground text-sm">{n.title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{n.source ?? ''} {n.publishedAt ? `· ${new Date(n.publishedAt).toLocaleDateString('es-AR')}` : ''}</div>
-                </a>
-              ))}
-            </div>
+        {data.news && data.news.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {data.news.map((n, idx) => (
+              <NewsImpactCard
+                key={idx}
+                title={n.title}
+                summary={n.summary ?? "Analizando contenido..."}
+                impact={n.impact ?? "Neutral"}
+                impactReason={n.impactReason ?? "Calculando impacto..."}
+                source={n.source}
+                publishedAt={n.publishedAt}
+                link={n.link}
+              />
+            ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No hay noticias recientes para este activo.</p>
+          <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border bg-background/20">
+            <p className="text-sm text-muted-foreground">
+              No se encontraron noticias recientes para analizar en este activo.
+            </p>
+          </div>
         )}
       </section>
 

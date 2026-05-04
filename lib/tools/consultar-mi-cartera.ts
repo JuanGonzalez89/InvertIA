@@ -12,8 +12,10 @@ export const createConsultarMiCartera = (userId: string) =>
   tool({
     description:
       "Consulta las posiciones actuales del usuario en su cartera: qué activos tiene, cuántas unidades y a qué precio promedio de compra. Úsala cuando el usuario pregunte por su cartera, sus tenencias o quiera saber qué tiene.",
-    inputSchema: z.object({}),
-    execute: async () => {
+    inputSchema: z.object({
+      consulta: z.string().describe("Qué se quiere consultar (ej: 'todo')")
+    }),
+    execute: async ({ consulta }) => {
       console.log(`[Tool] consultarMiCartera → userId: ${userId}`);
 
       try {

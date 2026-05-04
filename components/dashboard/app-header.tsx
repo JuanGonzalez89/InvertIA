@@ -68,16 +68,20 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkles className="h-4 w-4" aria-hidden />
+        <Link href="/" className="flex shrink-0 items-center gap-3">
+          <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-primary bg-black shadow-lg shadow-primary/30 transition-transform hover:scale-105">
+            <img 
+              src="/logo.png" 
+              alt="InvertIA Logo" 
+              className="h-full w-full object-cover" 
+            />
           </div>
           <div className="flex flex-col leading-none">
-            <span className="font-sans text-base font-semibold tracking-tight text-foreground">
+            <span className="font-sans text-base font-bold tracking-tight text-foreground">
               InvertIA
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              AI Portfolio
+            <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80">
+              AI Financial Lab
             </span>
           </div>
         </Link>
@@ -95,11 +99,10 @@ export function AppHeader() {
                 key={item.label}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  active
+                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${active
                     ? "bg-secondary text-foreground"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                }`}
+                  }`}
               >
                 {item.label}
               </Link>
@@ -194,10 +197,10 @@ export function AppHeader() {
             <SheetContent side="right" className="w-72 border-border bg-background p-0">
               <SheetHeader className="border-b border-border px-5 py-4">
                 <SheetTitle className="flex items-center gap-2.5 text-left">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Sparkles className="h-4 w-4" aria-hidden />
+                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-black border-2 border-primary">
+                    <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
                   </div>
-                  <span className="font-sans text-base font-semibold tracking-tight">
+                  <span className="font-sans text-base font-bold tracking-tight">
                     InvertIA
                   </span>
                 </SheetTitle>
@@ -211,11 +214,10 @@ export function AppHeader() {
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
                       aria-current={active ? "page" : undefined}
-                      className={`rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
-                        active
+                      className={`rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${active
                           ? "bg-secondary text-foreground"
                           : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                      }`}
+                        }`}
                     >
                       {item.label}
                     </Link>

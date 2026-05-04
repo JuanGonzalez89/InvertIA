@@ -1,32 +1,17 @@
 import {
-  Bell,
-  KeyRound,
   UserCircle2,
 } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ProfileCard } from "@/components/dashboard/profile-card"
 import { DataErrorState } from "@/components/dashboard/data-error-state"
 import { ProfileInlineDetails } from "@/components/dashboard/profile-inline-details"
-import { TwoFactorSecurityCard } from "@/components/dashboard/two-factor-security-card"
+import { ProfileSettingsList } from "@/components/dashboard/profile-settings-list"
 import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getPortfolio } from "@/lib/services/portfolio.service"
 import { redirect } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 
 export const dynamic = "force-dynamic"
-
-const PREFERENCES = [
-  {
-    icon: Bell,
-    title: "Notificaciones",
-    desc: "Alertas de movimientos y noticias relevantes.",
-  },
-  {
-    icon: KeyRound,
-    title: "Sesiones activas",
-    desc: "Revisá los dispositivos con acceso a tu cuenta.",
-  },
-]
 
 export default async function PerfilPage() {
   const { userId } = await auth()
@@ -102,35 +87,7 @@ export default async function PerfilPage() {
                 Preferencias y seguridad
               </h2>
             </div>
-            <ul className="divide-y divide-border">
-              <TwoFactorSecurityCard enabled={twoFactorEnabled} />
-              {PREFERENCES.map((p) => {
-                const Icon = p.icon
-                return (
-                  <li
-                    key={p.title}
-                    className="flex items-center justify-between gap-4 px-5 py-4"
-                  >
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Icon className="h-4 w-4" aria-hidden />
-                      </div>
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="text-sm font-semibold text-foreground">
-                          {p.title}
-                        </div>
-                        <p className="text-pretty text-[12px] leading-relaxed text-muted-foreground">
-                          {p.desc}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="inline-flex shrink-0 rounded-md bg-secondary px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Ver
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
+            <ProfileSettingsList twoFactorEnabled={twoFactorEnabled} />
           </section>
         </div>
 

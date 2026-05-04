@@ -13,11 +13,10 @@ export const explicarDecision = tool({
     pros: z.array(z.string()).describe("Lista de razones a favor"),
     contras: z.array(z.string()).describe("Lista de riesgos o razones en contra"),
     nivelRiesgo: z.enum(["bajo", "medio", "alto"]),
-    advertencia: z
-      .string()
-      .optional()
-      .describe("Advertencia regulatoria si aplica"),
-  }),
+     advertencia: z
+       .string()
+       .describe("Advertencia regulatoria si aplica (dejar vacío si no hay)"),
+   }),
   execute: async (params) => {
     console.log(`[Tool] explicarDecision → ${params.accion} ${params.ticker}`);
 

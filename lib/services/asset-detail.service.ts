@@ -1,5 +1,6 @@
 import { db } from "@/lib/prisma";
 import { QUOTE_FIELDS, toBCBASymbol, yahooFinance } from "@/lib/yahoo";
+import { analyzeNews } from "./news-analyzer.service";
 
 export type AssetDetailRange = "1D" | "1M" | "6M" | "1Y" | "5Y";
 
@@ -28,9 +29,12 @@ export type AssetDetailData = {
   about: string;
   news: Array<{
     title: string;
-    link?: string | null;
-    source?: string | null;
-    publishedAt?: string | null;
+    link: string | null;
+    source: string | null;
+    publishedAt: string | null;
+    summary?: string;
+    impact?: "Bullish" | "Bearish" | "Neutral";
+    impactReason?: string;
   }>;
   chartPoints: AssetDetailPoint[];
   chartLabel: string;
@@ -68,9 +72,16 @@ const FALLBACK_CEDEAR_INFO: Record<string, { ratio: number; underlying: string }
   "GOOGL.BA": { ratio: 10, underlying: "GOOGL" },
   "AMZN.BA": { ratio: 10, underlying: "AMZN" },
   "META.BA": { ratio: 10, underlying: "META" },
-  "TSLA.BA": { ratio: 10, underlying: "TSLA" },
+  "TSLA.BA": { ratio: 15, underlying: "TSLA" },
   "NFLX.BA": { ratio: 10, underlying: "NFLX" },
   "AMD.BA": { ratio: 10, underlying: "AMD" },
+  "MELI.BA": { ratio: 60, underlying: "MELI" },
+  "BABA.BA": { ratio: 9, underlying: "BABA" },
+  "KO.BA": { ratio: 5, underlying: "KO" },
+  "DIS.BA": { ratio: 4, underlying: "DIS" },
+  "V.BA": { ratio: 10, underlying: "V" },
+  "WMT.BA": { ratio: 6, underlying: "WMT" },
+  "JPM.BA": { ratio: 5, underlying: "JPM" },
 };
 
 function safeNumber(value: unknown): number | null {
@@ -159,12 +170,17 @@ async function fetchProfileText(symbol: string): Promise<string | null> {
   }
 }
 
-async function fetchNews(symbol: string) {
+async function fetchNews(symbol: string, companyName?: string) {
   try {
-    // yahoo-finance2 does not guarantee a stable `news` helper across versions,
-    // try `search` and fallback to empty array. Keep this tolerant to errors.
-    const results = await (yahooFinance as any).search(symbol);
-    const rawNews = (results && results.news) || (results && results.items) || [];
+    let results = await (yahooFinance as any).search(symbol);
+    let rawNews = (results && results.news) || (results && results.items) || [];
+
+    // Fallback: Si no hay noticias por ticker, buscar por nombre de empresa (más amplio)
+    if (rawNews.length === 0 && companyName) {
+      console.log(`[AssetDetail] No news for ${symbol}, trying company name: ${companyName}`);
+      results = await (yahooFinance as any).search(companyName);
+      rawNews = (results && results.news) || (results && results.items) || [];
+    }
 
     if (!Array.isArray(rawNews)) return [];
 
@@ -226,12 +242,14 @@ export async function getAssetDetailData(ticker: string, range: AssetDetailRange
     fetchProfileText(underlyingTicker ?? cedearSymbol),
   ]);
 
-  // fetch news independently (tolerant)
-  const news = await fetchNews(underlyingTicker ?? cedearSymbol);
+  const companyName = asset?.name ?? cedearSnapshot.companyName;
+
+  // Fetch news and analyze them with AI
+  const rawNews = await fetchNews(underlyingTicker ?? cedearSymbol, companyName);
+  const news = await analyzeNews(requestedTicker, rawNews);
 
   const chartPoints = mapChartPoints(cedearHistory.quotes);
   const currentPriceARS = cedearSnapshot.currentPrice;
-  const companyName = asset?.name ?? cedearSnapshot.companyName;
   const underlyingPriceUSD = underlyingSnapshot?.currentPrice ?? null;
   const impliedCCL = cedearRatio && underlyingPriceUSD
     ? (currentPriceARS * cedearRatio) / underlyingPriceUSD

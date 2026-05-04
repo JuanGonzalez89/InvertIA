@@ -24,19 +24,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
+        url: "/logo.png",
+        type: "image/png",
       },
     ],
-    apple: "/apple-icon.png",
+    apple: "/logo.png",
   },
 }
 
@@ -50,7 +42,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      appearance={{
+        baseTheme: dark,
+      }}
+    >
       <html lang="es" className={`dark ${geistSans.variable} ${geistMono.variable} bg-background`}>
         <body className="font-sans antialiased">
           <div className="relative min-h-screen bg-background text-foreground">

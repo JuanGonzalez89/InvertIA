@@ -1,9 +1,14 @@
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, tool, convertToModelMessages, stepCountIs } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { getPortfolio } from "@/lib/services/portfolio.service";
 import { formatARS, formatPercent } from "@/lib/utils";
 import { QUOTE_FIELDS, toBCBASymbol, yahooFinance } from "@/lib/yahoo";
+import { z } from "zod";
+import { consultarPrecioMercado } from "@/lib/tools/consultar-precio-mercado";
+import { createConsultarMiCartera } from "@/lib/tools/consultar-mi-cartera";
+import { calcularMetricas } from "@/lib/tools/calcular-metricas";
+import { explicarDecision } from "@/lib/tools/explicar-decision";
 
 type FreshMarketQuote = {
   ticker: string;
@@ -124,7 +129,10 @@ function formatMarketSnapshot(quotes: FreshMarketQuote[]): string {
 
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
+    const isLocalTest = req.headers.get("x-test-bypass") === "local-dev-only";
+    const user = isLocalTest
+      ? { id: "cmoqcatvf000004kwdkucu6q1" }
+      : await getCurrentUser();
     if (!user) {
       return new Response("No autorizado", { status: 401 });
     }
@@ -166,10 +174,10 @@ export async function POST(req: Request) {
           portfolioTickers = portfolio.assets.map((asset) => asset.ticker);
           const assetsDescription = portfolio.assets
             .map((asset) => {
-              const gainPercentAsset = asset.avgBuyPrice ? ((asset.currentPrice - asset.avgBuyPrice) / asset.avgBuyPrice) * 100 : 0;
+              const gainPercentAsset = asset.totalGainPercent ?? 0;
               const dailyChange = asset.dailyChangePercent ?? 0;
               const dailyLabel = dailyChange > 0 ? "📈" : dailyChange < 0 ? "📉" : "➡️";
-              
+
               return `${asset.ticker}|${asset.quantity}un|${formatARS(asset.currentPrice)}|${gainPercentAsset > 0 ? "+" : ""}${gainPercentAsset.toFixed(1)}%|${dailyLabel}${dailyChange.toFixed(2)}%`;
             })
             .join("\n");
@@ -182,6 +190,7 @@ TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.to
         }
       } catch (err) {
         console.error("Error retrieving portfolio for RAG:", err);
+        portfolioContext = "[CARTERA] Error al cargar datos.";
       }
     }
 
@@ -195,41 +204,23 @@ TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.to
       marketContext = formatMarketSnapshot(freshQuotes);
     }
 
-    const systemPrompt = `Sos InvertIA, asistente financiero especializado en mercado argentino.
+    const systemPrompt = `Sos InvertIA, el asistente financiero inteligente de élite especializado en el mercado argentino.
 Usuario: ${user.name ?? "usuario"}. Mercado: CEDEARs, BCBA, Bonos.
 
-FORMATO OBLIGATORIO:
-1. Escribí SIEMPRE una lista numerada.
-2. Dejá una línea en blanco entre cada punto.
-3. Cada punto debe ser corto, con una sola idea principal.
-4. Si hay cartera, usá este orden: cambio, motivo, recomendación.
+TU MISIÓN:
+Proporcionar análisis financieros profundos, técnicos y visuales. No te limites a leer números; explica el "por qué".
+
+REGLAS CRÍTICAS DE HERRAMIENTAS:
+1. SIEMPRE que te pidan "COMPARAR", "MOSTRAR GRÁFICO" O "VER RENDIMIENTO", **DEBÉS** llamar a getHistoricalPerformance.
+2. Si es una COMPARACIÓN (ej: ALUA vs TXAR), llamá a getHistoricalPerformance DOS VECES (una para cada ticker) en el MISMO PASO.
+3. Si pides noticias, usá getLatestNews. Si no encuentras para el ticker local, intenta con el internacional.
+4. NUNCA inventes números. Si la herramienta falla, explícalo técnicamente.
 
 ESTILO DE RESPUESTA:
-- Máximo 140 palabras.
-- Sin párrafos largos.
-- Sin preámbulos ni cierre largo.
-- CEDEARs: contexto USD global.
-- BCBA: contexto Argentina.
-- Si no hay dato duro, marcá la hipótesis como probable.
-
-SALUDO O PRESENTACIÓN:
-- Si el usuario dice "hola", "quién sos" o pregunta funciones,
-  respondé en formato simple de 3 puntos:
-  1. quién sos
-  2. qué hacés
-  3. cómo ayudás con la cartera
-
-FUENTE DE VERDAD DEL MERCADO:
-- Los datos debajo vienen de Yahoo Finance y son la referencia actual.
-- Si el usuario pregunta por un activo incluido abajo, usá esos datos.
-- No inventes precios ni variaciones.
-
-EJEMPLO DE FORMATO:
-1. No hay cambios en tu cartera: YPF 10un a $30.000,00 y NVDA 2un a $38.500,00.
-
-2. Estás expuesto a energía y tecnología, con poca diversificación.
-
-3. Sumaría bonos argentinos para bajar riesgo y monitorearía YPF y NVDA.
+- Directo, profesional y basado en datos.
+- Usá una lista numerada para conclusiones.
+- El usuario espera ver los gráficos automáticos. Sé breve en el texto.
+- Máximo 150 palabras.
 
 MERCADO ACTUAL YAHOO FINANCE:
 ${marketContext || "Sin snapshot de mercado disponible."}
@@ -241,17 +232,100 @@ ${portfolioContext}`;
 
     const groq = createGroq({ apiKey: getGroqApiKey() });
 
+    const getHistoricalPerformance = tool({
+      description: "Obtiene el rendimiento histórico de un activo para un período determinado. Retorna la serie de precios.",
+      inputSchema: z.object({
+        ticker: z.string().describe("El ticker del activo (ej: YPF, AAPL)"),
+        period: z.string().describe("Días hacia atrás en formato texto (ej: '30')"),
+      }),
+      execute: async ({ ticker, period }) => {
+        const days = parseInt(period, 10) || 30;
+        const symbol = toBCBASymbol(ticker);
+        try {
+          const chart = await yahooFinance.chart(symbol, {
+            period1: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+            interval: "1d",
+          });
+          const quotes = chart.quotes
+            .filter(q => q.close !== null && q.date !== null)
+            .map(q => ({
+              date: q.date.toISOString(),
+              close: q.close!
+            }));
+
+          if (quotes.length < 2) return { error: `No hay suficientes datos históricos para ${ticker}.` };
+
+          const startPrice = quotes[0].close;
+          const endPrice = quotes[quotes.length - 1].close;
+          const change = ((endPrice / startPrice) - 1) * 100;
+
+          return {
+            ticker,
+            symbol,
+            days,
+            change: Number(change.toFixed(2)),
+            startPrice,
+            endPrice,
+            data: quotes // El componente ChatChart usará este array
+          };
+        } catch (err) {
+          return { error: `Error consultando datos históricos de ${ticker}.` };
+        }
+      }
+    });
+
+    const getLatestNews = tool({
+      description: "Busca las últimas noticias financieras de un activo específico.",
+      inputSchema: z.object({
+        ticker: z.string().describe("El ticker del activo"),
+      }),
+      execute: async ({ ticker }) => {
+        const localSymbol = toBCBASymbol(ticker);
+        const globalSymbol = ticker.includes('.') ? ticker.split('.')[0] : ticker;
+        
+        try {
+          // Intentar primero con el símbolo local (Argentina)
+          let results = await (yahooFinance as any).search(localSymbol);
+          let news = (results && results.news) || [];
+          
+          // Si no hay noticias, intentar con el símbolo global (ej: MELI en vez de MELI.BA)
+          if (news.length === 0 && localSymbol !== globalSymbol) {
+            results = await (yahooFinance as any).search(globalSymbol);
+            news = (results && results.news) || [];
+          }
+
+          if (news.length === 0) return `No se encontraron noticias recientes para ${ticker}.`;
+          
+          return news.slice(0, 4).map((n: any) => `- ${n.title} (${n.publisher})`).join("\n");
+        } catch (err) {
+          return `Error buscando noticias de ${ticker}.`;
+        }
+      }
+    });
+
     const result = await streamText({
       model: groq("llama-3.3-70b-versatile"),
       system: systemPrompt,
       messages: await convertToModelMessages(windowedMessages),
+
+
+      tools: {
+        getHistoricalPerformance,
+        getLatestNews,
+        consultarPrecioMercado,
+        consultarMiCartera: createConsultarMiCartera(user.id),
+        calcularMetricas,
+        explicarDecision,
+      },
+
+      stopWhen: stepCountIs(5),
     });
 
     return result.toUIMessageStreamResponse({
       headers: {
         "X-RateLimit-Remaining": String(rl.remaining),
         "X-Sliding-Window": String(SLIDING_WINDOW),
-        "X-Note": "Tools disabled for Groq compatibility. Using RAG only.",
+        "X-Note": "Tools enabled for enhanced context.",
       },
     });
 

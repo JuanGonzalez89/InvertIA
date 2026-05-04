@@ -59,9 +59,14 @@ export function getBCBAMarketStatus(now: Date = new Date()) {
 
   const isOpen = !isWeekend && !isHoliday && isWithinSession;
 
+  let label = "Mercado cerrado";
+  if (isOpen) label = "Mercado abierto";
+  else if (isWeekend) label = "Fin de semana";
+  else if (isHoliday) label = "Feriado";
+
   return {
     isOpen,
-    label: isOpen ? "Mercado abierto" : "Mercado cerrado",
+    label,
     isWeekend,
     isHoliday,
   };

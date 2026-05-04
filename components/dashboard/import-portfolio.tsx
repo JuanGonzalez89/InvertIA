@@ -33,6 +33,7 @@ type PreviewRow = {
   quantity: number
   price: number
   type: "BUY" | "SELL"
+  assetType: "CEDEAR" | "ACCION" | "BONO" | "ETF" | "OTRO"
 }
 
 const OPTIONS: ImportOption[] = [
@@ -71,20 +72,30 @@ function parseNumber(value: unknown) {
 
 function normalizeRows(rows: Array<Record<string, unknown>>): PreviewRow[] {
   return rows
-    .map((row) => {
+    .map((row): PreviewRow | null => {
       const ticker = String(row.ticker ?? row.symbol ?? row.codigo ?? row.activo ?? "")
         .toUpperCase()
         .trim()
       const quantity = parseNumber(row.quantity ?? row.qty ?? row.cantidad ?? row.cant)
       const price = parseNumber(row.price ?? row.precio ?? row.avgPrice ?? row.valor)
       const typeRaw = String(row.type ?? row.tipo ?? "BUY").toUpperCase().trim()
-      const type = typeRaw === "SELL" ? "SELL" : "BUY"
+      const type: "BUY" | "SELL" = typeRaw === "SELL" ? "SELL" : "BUY"
+
+      // Intento básico de detectar categoría
+      let assetType: "CEDEAR" | "ACCION" | "BONO" | "ETF" | "OTRO" = "OTRO"
+      const typeStr = String(row.assetType ?? row.categoria ?? row.clase ?? "").toUpperCase()
+      
+      if (typeStr.includes("CEDEAR")) assetType = "CEDEAR"
+      else if (typeStr.includes("ACCION") || typeStr.includes("STOCK")) assetType = "ACCION"
+      else if (typeStr.includes("BONO") || typeStr.includes("BOND")) assetType = "BONO"
+      else if (typeStr.includes("ETF")) assetType = "ETF"
+      else if (ticker.includes(".") || ticker.length > 4) assetType = "CEDEAR" 
 
       if (!ticker || quantity <= 0) {
         return null
       }
 
-      return { ticker, quantity, price, type }
+      return { ticker, quantity, price, type, assetType }
     })
     .filter((row): row is PreviewRow => row !== null)
 }
