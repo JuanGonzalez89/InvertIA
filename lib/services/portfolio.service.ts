@@ -53,20 +53,22 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     const cashBalances = await db.cashBalance.findMany({
       where: { userId }
     });
+    const safeCashBalances = Array.isArray(cashBalances) ? cashBalances : [];
 
     // Separamos liquidez por moneda (por ahora retornamos ARS como principal)
-    const liquidityARS = cashBalances.find((b: any) => b.currency === 'ARS')?.amount || 0;
-    const liquidityUSD = cashBalances.find((b: any) => b.currency === 'USD')?.amount || 0;
+    const liquidityARS = safeCashBalances.find((b: any) => b.currency === 'ARS')?.amount || 0;
+    const liquidityUSD = safeCashBalances.find((b: any) => b.currency === 'USD')?.amount || 0;
 
     // Obtenemos sus posiciones actuales junto con la data del activo
     const positions = await db.position.findMany({
       where: { userId },
       include: { asset: true }
     });
+    const safePositions = Array.isArray(positions) ? positions : [];
 
     // Obtener precios para todas las posiciones
     const quoteEntries: Array<[string, FreshMarketQuoteSnapshot | null]> = await Promise.all(
-      positions.map(async (pos: any) => {
+      safePositions.map(async (pos: any) => {
         const quote = await getFreshMarketQuote(pos.asset.yahooSymbol || pos.asset.symbol);
         return [pos.id, quote];
       })
@@ -76,7 +78,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     let totalInvested = 0;
     let totalCurrentValue = 0;
 
-    const mappedAssets = positions.map((pos: any) => {
+    const mappedAssets = safePositions.map((pos: any) => {
       // Solo usamos cotización externa cuando viene en ARS; si no, preservamos el precio importado.
       const invested = pos.quantity * pos.avgPrice;
       const quote = quoteMap.get(pos.id);

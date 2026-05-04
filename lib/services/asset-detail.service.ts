@@ -126,6 +126,24 @@ async function resolveAssetRecord(ticker: string): Promise<AssetRecord | null> {
   });
 }
 
+function resolvePreferredSymbol(ticker: string, market?: "local" | "global") {
+  const normalized = ticker.trim().toUpperCase();
+
+  if (normalized.includes(".")) {
+    return normalized;
+  }
+
+  if (market === "global") {
+    return normalized;
+  }
+
+  if (market === "local") {
+    return toBCBASymbol(normalized);
+  }
+
+  return toBCBASymbol(normalized);
+}
+
 async function fetchMarketSnapshot(symbol: string) {
   const quote = await yahooFinance.quote(symbol, { fields: QUOTE_FIELDS });
   const chart = await yahooFinance.chart(symbol, {
@@ -213,11 +231,37 @@ function mapChartPoints(quotes: Array<{ date: Date; close: number | null }>): As
     }));
 }
 
-export async function getAssetDetailData(ticker: string, range: AssetDetailRange = "1M"): Promise<AssetDetailData> {
+export async function getAssetDetailData(
+  ticker: string,
+  range: AssetDetailRange = "1M",
+  market?: "local" | "global"
+): Promise<AssetDetailData> {
   const requestedTicker = ticker.trim().toUpperCase();
-  const asset = await resolveAssetRecord(requestedTicker);
-  const isCedear = asset?.type === "CEDEAR" || requestedTicker.endsWith(".BA");
-  const cedearSymbol = asset?.yahooSymbol ?? toBCBASymbol(requestedTicker);
+  const asset = market
+    ? await db.asset.findFirst({
+        where: market === "global"
+          ? {
+              OR: [
+                { symbol: requestedTicker },
+                { yahooSymbol: requestedTicker },
+              ],
+            }
+          : {
+              OR: [
+                { symbol: requestedTicker.endsWith(".BA") ? requestedTicker : `${requestedTicker}.BA` },
+                { yahooSymbol: requestedTicker.endsWith(".BA") ? requestedTicker : `${requestedTicker}.BA` },
+              ],
+            },
+      })
+    : await resolveAssetRecord(requestedTicker);
+
+  const cedearSymbol =
+    asset?.yahooSymbol ?? resolvePreferredSymbol(requestedTicker, market);
+  const isCedear = market === "local"
+    ? true
+    : market === "global"
+      ? false
+      : asset?.type === "CEDEAR" || requestedTicker.endsWith(".BA");
   const fallbackInfo = FALLBACK_CEDEAR_INFO[cedearSymbol] ?? FALLBACK_CEDEAR_INFO[requestedTicker];
 
   const underlyingTicker =

@@ -8,6 +8,7 @@ const VALID_RANGES: AssetDetailRange[] = ["1D", "1M", "6M", "1Y", "5Y"];
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const ticker = searchParams.get("ticker")?.trim();
+  const market = searchParams.get("market")?.trim().toLowerCase();
   const range = searchParams.get("range")?.trim().toUpperCase() as AssetDetailRange | undefined;
 
   if (!ticker) {
@@ -19,7 +20,8 @@ export async function GET(request: Request) {
     : "1M";
 
   try {
-    const data = await getAssetDetailData(ticker, selectedRange);
+    const selectedMarket = market === "local" || market === "global" ? market : undefined;
+    const data = await getAssetDetailData(ticker, selectedRange, selectedMarket);
     return NextResponse.json(data, {
       headers: {
         "Cache-Control": "no-store",

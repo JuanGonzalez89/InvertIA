@@ -144,10 +144,11 @@ export function MarketSearch() {
       ? groupedRemoteResults.global
       : groupedRemoteResults.all
 
-  const selectItem = (ticker: string) => {
+  const selectItem = (ticker: string, market?: "local" | "global") => {
     setOpen(false)
     setQuery("")
-    router.push(`/activo/${encodeURIComponent(ticker)}`)
+    const searchParams = market ? `?market=${market}` : ""
+    router.push(`/activo/${encodeURIComponent(ticker)}${searchParams}`)
   }
 
   return (
@@ -208,7 +209,7 @@ export function MarketSearch() {
             {query.length > 0 && visibleRemoteResults.length > 0 && scope !== "both" && (
               <CommandGroup heading={scope === "local" ? "Mercado local" : "Mercado global"}>
                 {visibleRemoteResults.map((item) => (
-                  <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker)}>
+                  <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker, item.market)}>
                     <div className="flex w-full items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -235,7 +236,7 @@ export function MarketSearch() {
                 {groupedRemoteResults.local.length > 0 && (
                   <CommandGroup heading="Mercado local">
                     {groupedRemoteResults.local.map((item) => (
-                      <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker)}>
+                      <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker, item.market)}>
                         <div className="flex w-full items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -260,7 +261,7 @@ export function MarketSearch() {
                 {groupedRemoteResults.global.length > 0 && (
                   <CommandGroup heading="Mercado global">
                     {groupedRemoteResults.global.map((item) => (
-                      <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker)}>
+                      <CommandItem key={`${item.ticker}-${item.name}`} onSelect={() => selectItem(item.ticker, item.market)}>
                         <div className="flex w-full items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">

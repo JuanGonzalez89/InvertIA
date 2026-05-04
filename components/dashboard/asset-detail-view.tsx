@@ -13,6 +13,7 @@ import type { AssetDetailData, AssetDetailRange } from "@/lib/services/asset-det
 
 type AssetDetailViewProps = {
   ticker: string;
+  market?: "local" | "global";
 };
 
 const RANGE_OPTIONS: AssetDetailRange[] = ["1D", "1M", "6M", "1Y", "5Y"];
@@ -95,7 +96,7 @@ function MetricCard({
   )
 }
 
-export function AssetDetailView({ ticker }: AssetDetailViewProps) {
+export function AssetDetailView({ ticker, market }: AssetDetailViewProps) {
   const [range, setRange] = useState<AssetDetailRange>("1M")
   const [data, setData] = useState<AssetDetailData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -111,7 +112,7 @@ export function AssetDetailView({ ticker }: AssetDetailViewProps) {
 
       try {
         const response = await fetch(
-          `/api/asset-detail?ticker=${encodeURIComponent(ticker)}&range=${range}`,
+          `/api/asset-detail?ticker=${encodeURIComponent(ticker)}${market ? `&market=${market}` : ""}&range=${range}`,
           { signal: controller.signal, cache: "no-store" }
         )
 
