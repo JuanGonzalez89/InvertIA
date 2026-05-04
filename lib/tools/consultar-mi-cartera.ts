@@ -27,7 +27,9 @@ export const createConsultarMiCartera = (userId: string) =>
           include: { asset: true },
         });
 
-        if (positions.length === 0) {
+        const safePositions = Array.isArray(positions) ? positions : [];
+
+        if (safePositions.length === 0) {
           return {
             tieneCartera: false,
             mensaje: "El usuario no tiene posiciones registradas aún.",
@@ -36,7 +38,7 @@ export const createConsultarMiCartera = (userId: string) =>
 
         return {
           tieneCartera: true,
-          posiciones: (positions as PortfolioPosition[]).map((p) => ({
+          posiciones: (safePositions as PortfolioPosition[]).map((p) => ({
             ticker: p.asset.symbol,
             nombre: p.asset.name,
             cantidad: p.quantity,

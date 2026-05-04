@@ -228,43 +228,6 @@ export async function POST(req: Request) {
       return new Response("El cuerpo de la solicitud no contiene mensajes válidos.", { status: 400 });
     }
 
-    console.log(
-      "[Chat API] provider=groq model=llama-3.3-70b-versatile chatId=%s msgs=%d status=%s rl_rem=%d",
-      chatId, messages.length, portfolioStatusHint ?? "normal", rl.remaining
-    );
-
-    let portfolioContext = "";
-    let marketContext = "";
-    let portfolioTickers: string[] = [];
-    if (portfolioStatusHint === "cached_unchanged") {
-      portfolioContext = `[CARTERA] Sin cambios desde ultimo msg.`;
-    } else {
-      try {
-        const portfolio = await getPortfolio(user.id);
-        if (portfolio && portfolio.assets.length > 0) {
-          portfolioTickers = portfolio.assets.map((asset) => asset.ticker);
-          const assetsDescription = portfolio.assets
-            .map((asset) => {
-              const gainPercentAsset = asset.totalGainPercent ?? 0;
-              const dailyChange = asset.dailyChangePercent ?? 0;
-              const dailyLabel = dailyChange > 0 ? "📈" : dailyChange < 0 ? "📉" : "➡️";
-
-              return `${asset.ticker}|${asset.quantity}un|${formatARS(asset.currentPrice)}|${gainPercentAsset > 0 ? "+" : ""}${gainPercentAsset.toFixed(1)}%|${dailyLabel}${dailyChange.toFixed(2)}%`;
-            })
-            .join("\n");
-
-          const totalGainPercent = portfolio.gainLossPercent ?? 0;
-          portfolioContext = `CARTERA:
-Ticker|Cant|Precio|Ganancia%|Var24h%
-${assetsDescription}
-TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.totalInvested)} | P&L: ${formatARS(portfolio.totalGainLoss)} (${formatPercent(totalGainPercent)})`;
-        }
-      } catch (err) {
-        console.error("Error retrieving portfolio for RAG:", err);
-        portfolioContext = "[CARTERA] Error al cargar datos.";
-      }
-    }
-
     const SLIDING_WINDOW = 6;
     const windowedMessages = messages.slice(-SLIDING_WINDOW);
     const latestUserText = getLatestUserText(windowedMessages);
@@ -282,7 +245,12 @@ Si el usuario saluda, respondé con un saludo corto y amable.
 Si pregunta quién sos o qué podés hacer, explicalo en una sola frase clara.
 No menciones precios, tickers, noticias ni análisis financiero salvo que el usuario lo pida explícitamente.`;
 
-      const greetingMessages = [{ role: "user" as const, content: latestUserText }];
+      const greetingMessages = [
+        {
+          role: "user" as const,
+          parts: [{ type: "text" as const, text: latestUserText }],
+        },
+      ];
 
       const smallTalkResult = await streamText({
         model: groq("llama-3.3-70b-versatile"),
@@ -321,7 +289,47 @@ Si el usuario mezcla temas, contestá sólo la parte general y pedí aclaración
       });
     }
 
-    const messageTickers = extractRelevantTickers(messages);
+    console.log(
+      "[Chat API] provider=groq model=llama-3.3-70b-versatile chatId=%s msgs=%d status=%s rl_rem=%d",
+      chatId, messages.length, portfolioStatusHint ?? "normal", rl.remaining
+    );
+
+    let portfolioContext = "";
+    let marketContext = "";
+    let portfolioTickers: string[] = [];
+
+    if (portfolioStatusHint === "cached_unchanged") {
+      portfolioContext = `[CARTERA] Sin cambios desde ultimo msg.`;
+    } else {
+      try {
+        const portfolio = await getPortfolio(user.id);
+        const safeAssets = Array.isArray(portfolio?.assets) ? portfolio.assets : [];
+
+        if (safeAssets.length > 0) {
+          portfolioTickers = safeAssets.map((asset) => asset.ticker);
+          const assetsDescription = safeAssets
+            .map((asset) => {
+              const gainPercentAsset = asset.totalGainPercent ?? 0;
+              const dailyChange = asset.dailyChangePercent ?? 0;
+              const dailyLabel = dailyChange > 0 ? "📈" : dailyChange < 0 ? "📉" : "➡️";
+
+              return `${asset.ticker}|${asset.quantity}un|${formatARS(asset.currentPrice)}|${gainPercentAsset > 0 ? "+" : ""}${gainPercentAsset.toFixed(1)}%|${dailyLabel}${dailyChange.toFixed(2)}%`;
+            })
+            .join("\n");
+
+          const totalGainPercent = portfolio?.gainLossPercent ?? 0;
+          portfolioContext = `CARTERA:
+Ticker|Cant|Precio|Ganancia%|Var24h%
+${assetsDescription}
+TOTAL: ${formatARS(portfolio?.totalCurrentValue ?? 0)} | Inv: ${formatARS(portfolio?.totalInvested ?? 0)} | P&L: ${formatARS(portfolio?.totalGainLoss ?? 0)} (${formatPercent(totalGainPercent)})`;
+        }
+      } catch (err) {
+        console.error("Error retrieving portfolio for RAG:", err);
+        portfolioContext = "[CARTERA] Error al cargar datos.";
+      }
+    }
+
+    const messageTickers = extractRelevantTickers(windowedMessages);
     const freshTickers = Array.from(new Set([...portfolioTickers, ...messageTickers])).slice(0, 8);
 
     if (freshTickers.length > 0) {
@@ -332,46 +340,46 @@ Si el usuario mezcla temas, contestá sólo la parte general y pedí aclaración
     }
 
     const systemPrompt = `Sos InvertIA, el asistente financiero inteligente de élite especializado en el mercado argentino.
-Usuario: ${user.name ?? "usuario"}. Mercado: CEDEARs, BCBA, Bonos.
+  Usuario: ${user.name ?? "usuario"}. Mercado: CEDEARs, BCBA, Bonos.
 
-TU MISIÓN:
-Proporcionar análisis financieros profundos, técnicos y visuales. No te limites a leer números; explica el "por qué".
+  TU MISIÓN:
+  Proporcionar análisis financieros profundos, técnicos y visuales. No te limites a leer números; explica el "por qué".
 
-SI EL USUARIO SOLO SALUDA O HACE CHITCHAT:
-- Respondé de forma humana, cálida y breve.
-- No muestres datos financieros ni uses herramientas.
-- Podés devolver un saludo y una pregunta corta del estilo "¿en qué te ayudo?".
+  SI EL USUARIO SOLO SALUDA O HACE CHITCHAT:
+  - Respondé de forma humana, cálida y breve.
+  - No muestres datos financieros ni uses herramientas.
+  - Podés devolver un saludo y una pregunta corta del estilo "¿en qué te ayudo?".
 
-HERRAMIENTAS DISPONIBLES EXACTAMENTE:
-- getHistoricalPerformance: rendimiento histórico de un ticker.
-- getLatestNews: noticias recientes de un ticker.
-- consultarPrecioMercado: precio puntual.
-- consultarMiCartera: datos de cartera del usuario.
-- calcularMetricas: métricas derivadas.
-- explicarDecision: explicación de una decisión.
+  HERRAMIENTAS DISPONIBLES EXACTAMENTE:
+  - getHistoricalPerformance: rendimiento histórico de un ticker.
+  - getLatestNews: noticias recientes de un ticker.
+  - consultarPrecioMercado: precio puntual.
+  - consultarMiCartera: datos de cartera del usuario.
+  - calcularMetricas: métricas derivadas.
+  - explicarDecision: explicación de una decisión.
 
-IMPORTANTE:
-- No inventes nombres de herramientas.
-- No intentes usar herramientas para saludos, identidad o preguntas generales.
-- Si no hace falta una herramienta, respondé con texto normal.
+  IMPORTANTE:
+  - No inventes nombres de herramientas.
+  - No intentes usar herramientas para saludos, identidad o preguntas generales.
+  - Si no hace falta una herramienta, respondé con texto normal.
 
-REGLAS CRÍTICAS DE HERRAMIENTAS:
-1. SIEMPRE que te pidan "COMPARAR", "MOSTRAR GRÁFICO" O "VER RENDIMIENTO", **DEBÉS** llamar a getHistoricalPerformance.
-2. Si es una COMPARACIÓN (ej: ALUA vs TXAR), llamá a getHistoricalPerformance DOS VECES (una para cada ticker) en el MISMO PASO.
-3. Si pides noticias, usá getLatestNews. Si no encuentras para el ticker local, intenta con el internacional.
-4. NUNCA inventes números. Si la herramienta falla, explícalo técnicamente.
+  REGLAS CRÍTICAS DE HERRAMIENTAS:
+  1. SIEMPRE que te pidan "COMPARAR", "MOSTRAR GRÁFICO" O "VER RENDIMIENTO", **DEBÉS** llamar a getHistoricalPerformance.
+  2. Si es una COMPARACIÓN (ej: ALUA vs TXAR), llamá a getHistoricalPerformance DOS VECES (una para cada ticker) en el MISMO PASO.
+  3. Si pides noticias, usá getLatestNews. Si no encuentras para el ticker local, intenta con el internacional.
+  4. NUNCA inventes números. Si la herramienta falla, explícalo técnicamente.
 
-ESTILO DE RESPUESTA:
-- Directo, profesional y basado en datos cuando haya consulta financiera.
-- Cuando sea un saludo, respondé conversacionalmente sin formato técnico.
-- Usá una lista numerada para conclusiones sólo cuando estés analizando datos.
-- El usuario espera ver los gráficos automáticos. Sé breve en el texto.
-- Máximo 150 palabras.
+  ESTILO DE RESPUESTA:
+  - Directo, profesional y basado en datos cuando haya consulta financiera.
+  - Cuando sea un saludo, respondé conversacionalmente sin formato técnico.
+  - Usá una lista numerada para conclusiones sólo cuando estés analizando datos.
+  - El usuario espera ver los gráficos automáticos. Sé breve en el texto.
+  - Máximo 150 palabras.
 
-MERCADO ACTUAL YAHOO FINANCE:
-${marketContext || "Sin snapshot de mercado disponible."}
+  MERCADO ACTUAL YAHOO FINANCE:
+  ${marketContext || "Sin snapshot de mercado disponible."}
 
-${portfolioContext}`;
+  ${portfolioContext}`;
 
     const getHistoricalPerformance = tool({
       description: "Obtiene el rendimiento histórico de un activo para un período determinado. Retorna la serie de precios.",
@@ -438,20 +446,18 @@ ${portfolioContext}`;
 
         const localSymbol = toBCBASymbol(ticker);
         const globalSymbol = ticker.includes('.') ? ticker.split('.')[0] : ticker;
-        
+
         try {
-          // Intentar primero con el símbolo local (Argentina)
           let results = await (yahooFinance as any).search(localSymbol);
           let news = (results && results.news) || [];
-          
-          // Si no hay noticias, intentar con el símbolo global (ej: MELI en vez de MELI.BA)
+
           if (news.length === 0 && localSymbol !== globalSymbol) {
             results = await (yahooFinance as any).search(globalSymbol);
             news = (results && results.news) || [];
           }
 
           if (news.length === 0) return `No se encontraron noticias recientes para ${ticker}.`;
-          
+
           return news.slice(0, 4).map((n: any) => `- ${n.title} (${n.publisher})`).join("\n");
         } catch (err) {
           return `Error buscando noticias de ${ticker}.`;
@@ -463,8 +469,6 @@ ${portfolioContext}`;
       model: groq("llama-3.3-70b-versatile"),
       system: systemPrompt,
       messages: await convertToModelMessages(windowedMessages),
-
-
       tools: {
         getHistoricalPerformance,
         getLatestNews,
@@ -473,7 +477,6 @@ ${portfolioContext}`;
         calcularMetricas,
         explicarDecision,
       },
-
       stopWhen: stepCountIs(5),
     });
 
@@ -502,7 +505,12 @@ Si el usuario saludó o preguntó algo general, contestá normalmente y ofrecé 
         model: groq("llama-3.3-70b-versatile"),
         system: recoveryPrompt,
         messages: latestUserTextForFallback
-          ? await convertToModelMessages([{ role: "user" as const, content: latestUserTextForFallback }])
+          ? await convertToModelMessages([
+              {
+                role: "user" as const,
+                parts: [{ type: "text" as const, text: latestUserTextForFallback }],
+              },
+            ])
           : [],
       });
 
