@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { SignedIn, SignedOut } from "@/components/auth/signed-state"
+import { LandingPage } from "@/components/landing/landing-page"
 import { HomePreviews } from "@/components/dashboard/home-previews"
 import { SectionShortcuts } from "@/components/dashboard/section-shortcuts"
 import { SummaryCards } from "@/components/dashboard/summary-cards"
@@ -38,32 +39,7 @@ export default async function Page() {
   return (
     <>
       <SignedOut>
-        <section className="rounded-xl border border-border bg-card p-6 sm:p-10">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            InvertIA
-          </p>
-          <h1 className="mt-2 text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Gestiona tu cartera con IA, datos reales y foco en mercado argentino.
-          </h1>
-          <p className="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Inicia sesion para ver tu dashboard personal, tu cartera y tus
-            movimientos conectados a base de datos.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/sign-in"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Iniciar sesion
-            </Link>
-            <Link
-              href="/sign-up"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground hover:bg-secondary"
-            >
-              Crear cuenta
-            </Link>
-          </div>
-        </section>
+        <LandingPage />
       </SignedOut>
 
       <SignedIn>
