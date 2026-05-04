@@ -1,37 +1,100 @@
-InvertIA - AI Portfolio Manager 
+# InvertIA - AI Portfolio Manager
 
-InvertIA es una plataforma fintech moderna que combina un dashboard financiero completo con un Agente de IA autónomo. No es solo un chatbot; es un asistente operativo capaz de tomar decisiones, explicar su razonamiento y ejecutar acciones sobre tu cartera de inversiones.
+InvertIA es un gestor de portafolio inteligente enfocado en el mercado argentino. La aplicación combina un dashboard financiero con un asistente de IA capaz de analizar contexto, consultar información de mercado y ayudar a gestionar una cartera de inversiones de forma más rápida y clara.
 
-Desarrollado para la hackathon global Zero to Agent de Vercel (Edición Buenos Aires).
+El proyecto fue creado para la hackathon global Zero to Agent de Vercel y está pensado como una base moderna para sumar automatización, contexto de usuario y herramientas conectadas a datos reales.
 
-🚀 Características Principales
+## Qué hace el proyecto
 
-Nuestro agente utiliza "Tool Calling" para interactuar directamente con la plataforma y el mundo exterior:
+InvertIA centraliza la visualización y gestión de inversiones con foco en:
 
-* Consultas en Tiempo Real: El agente lee APIs financieras vía Model Context Protocol (MCP) para obtener cotizaciones actualizadas de acciones, CEDEARs y bonos.
-* Memoria y Contexto: Conciencia total sobre el estado del usuario. El agente conoce tu liquidez disponible en pesos y la composición exacta de tu cartera antes de sugerir un movimiento.
-* Ejecución de Órdenes: Capacidad operativa real. Si el usuario aprueba una operación, el agente ejecuta la función que descuenta los fondos de la liquidez y acredita el activo en la cartera.
-* Explicador de Decisiones: Transparencia total. Antes de sugerir la compra/venta de un activo (ej. YPF, NVDA), el agente busca noticias recientes y contexto de mercado, explicando el por qué de su recomendación.
+- Seguimiento de cartera con métricas de valor, rendimiento y movimientos.
+- Exploración de mercado para activos locales y CEDEARs.
+- Registro e importación de operaciones.
+- Asistencia conversacional con IA para explicar decisiones y trabajar con contexto financiero.
 
-🛠️ Stack Tecnológico
+La idea no es solo mostrar datos, sino convertir la información en un flujo de trabajo útil para tomar decisiones con más contexto.
 
-* Frontend: Next.js (App Router), React, Tailwind CSS.
-* IA & Agentes: Vercel AI SDK, Vercel AI Gateway.
-* Integraciones: Model Context Protocol (MCP) para conectar el LLM con fuentes de datos externas.
-* Deploy: Vercel.
+## Funcionalidades principales
 
-🗂️ Estructura de la Aplicación
+- Dashboard financiero con vistas de resumen, cartera, mercado y movimientos.
+- Componente de IA para consultas y análisis contextual.
+- Integración preparada para herramientas externas mediante Model Context Protocol (MCP).
+- Gestión pensada para el mercado argentino, con foco en activos cotizados en pesos.
+- Autenticación y perfil de usuario para personalizar la experiencia.
 
-La interfaz está diseñada bajo una arquitectura de dashboard profesional multipágina:
-- `/`: Resumen general (Valor de cartera, rendimiento, liquidez).
-- `/cartera`: Vista detallada de activos y gestión de fondos.
-- `/mercado`: Screener de acciones destacadas (CEDEARs, ADRs).
-- `/agente`: Terminal inmersiva del AI Portfolio Manager.
+## Stack tecnológico
 
-👥 Equipo de Desarrollo
+- Frontend: Next.js con App Router, React y Tailwind CSS.
+- Estado y UI: Zustand y componentes reutilizables.
+- IA: Vercel AI SDK, Vercel AI Gateway y herramientas de lenguaje.
+- Integraciones: Model Context Protocol (MCP) para conectar datos externos.
+- Base de datos: Prisma.
+- Deploy: Vercel.
 
-* Juan Ignacio Gonzalez Caceres
-* Juan Pablo Garcia
-* Santiago Calderon
+## Estructura general
 
-*Proyecto en desarrollo activo hasta el 3 de mayo de 2026.*
+La aplicación está organizada como un dashboard multipágina:
+
+- `/`: Resumen general del portafolio.
+- `/cartera`: Vista detallada de tenencias y gestión de activos.
+- `/mercado`: Exploración y búsqueda de instrumentos.
+- `/movimientos`: Historial y exportación de operaciones.
+- `/chat`: Asistente conversacional con contexto de cartera.
+- `/perfil`: Datos y configuración del usuario.
+
+## Enfoque de arquitectura
+
+- La capa de servicios concentra la lógica de negocio y acceso a datos.
+- Los componentes de UI consumen servicios, no APIs directamente.
+- El contexto de cartera se usa para enriquecer las respuestas de IA.
+- La app prioriza consistencia de datos, especialmente en activos y divisas del mercado argentino.
+
+## Desarrollo local
+
+Instalación:
+
+```bash
+pnpm install
+```
+
+Ejecutar en modo desarrollo:
+
+```bash
+pnpm dev
+```
+
+Compilar para producción:
+
+```bash
+pnpm build
+```
+
+Levantar la versión compilada:
+
+```bash
+pnpm start
+```
+
+## Variables de entorno
+
+El proyecto utiliza variables como:
+
+- `AI_GATEWAY_API_KEY`
+- `GROQ_API_KEY`
+- `OPENAI_API_KEY`
+- `DATABASE_URL`
+- `CLERK_SECRET_KEY`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+
+Usá un archivo `.env.local` para configurarlas en desarrollo.
+
+## Equipo
+
+- Juan Ignacio Gonzalez Caceres
+- Juan Pablo Garcia
+- Santiago Calderon
+
+## Estado del proyecto
+
+Proyecto en desarrollo activo.
