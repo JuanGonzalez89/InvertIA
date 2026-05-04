@@ -14,15 +14,26 @@ type MarketQuote = {
 export const consultarPrecioMercado = tool({
   description:
     "Obtiene el precio de mercado actual de un activo en la Bolsa de Buenos Aires (BYMA/BCBA). Recibe el ticker base como 'AAPL', 'NVDA' o 'GGAL' y busca automáticamente el precio en pesos. Usala cuando necesites el precio actual de mercado.",
-  inputSchema: z.object({
-    ticker: z
-      .string()
-      .describe(
-        "Símbolo del activo sin sufijo. Ejemplos: 'AAPL', 'NVDA', 'GGAL', 'MELI'"
-      ),
-  }),
-  execute: async ({ ticker }) => {
-    const normalizedTicker = ticker.trim().toUpperCase();
+  inputSchema: z.union([
+    z.object({
+      ticker: z
+        .string()
+        .optional()
+        .describe(
+          "Símbolo del activo sin sufijo. Ejemplos: 'AAPL', 'NVDA', 'GGAL', 'MELI'"
+        ),
+    }),
+    z.null(),
+  ]),
+  execute: async (input: { ticker?: string } | null) => {
+    const normalizedTicker = input?.ticker?.trim().toUpperCase() ?? "";
+
+    if (!normalizedTicker) {
+      return {
+        error: "Falta el ticker",
+        sugerencia: "Indica un símbolo como 'AAPL', 'GGAL' o 'MELI'.",
+      };
+    }
 
     if (!/^[A-Z0-9.]{1,12}$/.test(normalizedTicker)) {
       return {

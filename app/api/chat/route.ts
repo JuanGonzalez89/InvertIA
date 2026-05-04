@@ -93,13 +93,68 @@ function extractRelevantTickers(messages: unknown[]): string[] {
   return Array.from(found).slice(0, 8);
 }
 
+function getLatestUserText(messages: unknown[]): string {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message: any = messages[index];
+    const role = message?.role ?? message?.parts?.[0]?.role;
+
+    if (role !== "user") {
+      continue;
+    }
+
+    if (typeof message?.content === "string") {
+      return message.content.trim();
+    }
+
+    if (Array.isArray(message?.parts)) {
+      const text = message.parts
+        .filter((part: any) => part?.type === "text" && typeof part?.text === "string")
+        .map((part: any) => part.text)
+        .join(" ")
+        .trim();
+
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return "";
+}
+
+function shouldBypassTools(latestUserText: string): boolean {
+  const normalized = latestUserText.toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  const identityOrHelpQuery = /(quien sos|quién sos|qu[eé] funcionalidades tienes|que haces|qué haces|que puedes hacer|qué puedes hacer|funcionalidades|ayuda|help|about you|quien eres|quién eres)/i.test(
+    normalized
+  );
+
+  if (identityOrHelpQuery) {
+    return true;
+  }
+
+  const greetingOnly = /^(hola|hola!|hola\.|buenas|buenas!|buen día|buen dia|hey|hello|hi|saludos)(\s*[!.,]*)?$/i.test(
+    normalized
+  );
+
+  if (!greetingOnly) {
+    return false;
+  }
+
+  return !/[a-z0-9]/i.test(normalized.replace(/^(hola|hola!|hola\.|buenas|buenas!|buen día|buen dia|hey|hello|hi|saludos)(\s*[!.,]*)?/i, ""));
+}
+
 async function getFreshMarketQuote(ticker: string): Promise<FreshMarketQuote | null> {
   const symbol = toBCBASymbol(ticker);
 
   try {
     const quote = await yahooFinance.quote(symbol, { fields: QUOTE_FIELDS });
 
-    if (!quote.regularMarketPrice) {
+    if (!quote || typeof quote.regularMarketPrice !== "number") {
       return null;
     }
 
@@ -131,7 +186,7 @@ export async function POST(req: Request) {
   try {
     const isLocalTest = req.headers.get("x-test-bypass") === "local-dev-only";
     const user = isLocalTest
-      ? { id: "cmoqcatvf000004kwdkucu6q1" }
+      ? { id: "cmoqcatvf000004kwdkucu6q1", name: "Usuario InvertIA" }
       : await getCurrentUser();
     if (!user) {
       return new Response("No autorizado", { status: 401 });
@@ -194,6 +249,34 @@ TOTAL: ${formatARS(portfolio.totalCurrentValue)} | Inv: ${formatARS(portfolio.to
       }
     }
 
+    const SLIDING_WINDOW = 6;
+    const windowedMessages = messages.slice(-SLIDING_WINDOW);
+    const latestUserText = getLatestUserText(windowedMessages);
+    const bypassTools = shouldBypassTools(latestUserText);
+
+    const groq = createGroq({ apiKey: getGroqApiKey() });
+
+    if (bypassTools) {
+      const smallTalkPrompt = `Sos InvertIA, un asistente financiero profesional y cordial.
+Respondé breve, natural y en español rioplatense.
+No uses herramientas ni inventes datos financieros.
+Si el usuario solo saluda, devolvé un saludo corto y ofrecé ayuda sobre cartera, mercado o movimientos.`;
+
+      const smallTalkResult = await streamText({
+        model: groq("llama-3.3-70b-versatile"),
+        system: smallTalkPrompt,
+        messages: await convertToModelMessages(windowedMessages),
+      });
+
+      return smallTalkResult.toUIMessageStreamResponse({
+        headers: {
+          "X-RateLimit-Remaining": String(rl.remaining),
+          "X-Sliding-Window": String(SLIDING_WINDOW),
+          "X-Note": "Small-talk fallback without tools.",
+        },
+      });
+    }
+
     const messageTickers = extractRelevantTickers(messages);
     const freshTickers = Array.from(new Set([...portfolioTickers, ...messageTickers])).slice(0, 8);
 
@@ -227,18 +310,21 @@ ${marketContext || "Sin snapshot de mercado disponible."}
 
 ${portfolioContext}`;
 
-    const SLIDING_WINDOW = 6;
-    const windowedMessages = messages.slice(-SLIDING_WINDOW);
-
-    const groq = createGroq({ apiKey: getGroqApiKey() });
-
     const getHistoricalPerformance = tool({
       description: "Obtiene el rendimiento histórico de un activo para un período determinado. Retorna la serie de precios.",
-      inputSchema: z.object({
-        ticker: z.string().describe("El ticker del activo (ej: YPF, AAPL)"),
-        period: z.string().describe("Días hacia atrás en formato texto (ej: '30')"),
-      }),
-      execute: async ({ ticker, period }) => {
+      inputSchema: z.union([
+        z.object({
+          ticker: z.string().optional().describe("El ticker del activo (ej: YPF, AAPL)"),
+          period: z.string().optional().describe("Días hacia atrás en formato texto (ej: '30')"),
+        }),
+        z.null(),
+      ]),
+      execute: async (input: { ticker?: string; period?: string } | null) => {
+        const ticker = input?.ticker?.trim().toUpperCase() ?? "";
+        const period = input?.period?.trim() ?? "30";
+
+        if (!ticker) return { error: "Falta el ticker para consultar el historial." };
+
         const days = parseInt(period, 10) || 30;
         const symbol = toBCBASymbol(ticker);
         try {
@@ -276,10 +362,17 @@ ${portfolioContext}`;
 
     const getLatestNews = tool({
       description: "Busca las últimas noticias financieras de un activo específico.",
-      inputSchema: z.object({
-        ticker: z.string().describe("El ticker del activo"),
-      }),
-      execute: async ({ ticker }) => {
+      inputSchema: z.union([
+        z.object({
+          ticker: z.string().optional().describe("El ticker del activo"),
+        }),
+        z.null(),
+      ]),
+      execute: async (input: { ticker?: string } | null) => {
+        const ticker = input?.ticker?.trim().toUpperCase() ?? "";
+
+        if (!ticker) return "Falta el ticker para buscar noticias.";
+
         const localSymbol = toBCBASymbol(ticker);
         const globalSymbol = ticker.includes('.') ? ticker.split('.')[0] : ticker;
         

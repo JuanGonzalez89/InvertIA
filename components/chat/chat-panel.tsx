@@ -6,6 +6,7 @@ import { ChatInput } from "./chat-input"
 import { ChatChart } from "./chat-chart"
 import { useState, useEffect, useRef } from "react"
 import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
 
 const CAPABILITIES = [
   { icon: Lightbulb, title: "Análisis contextual", desc: "Resumen de noticias y sentiment." },
@@ -16,14 +17,16 @@ const CAPABILITIES = [
 export function ChatPanel({ portfolio }: { portfolio?: any }) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [localInput, setLocalInput] = useState("")
+  const requestBody = {
+    portfolio_status: portfolio ? "updated" : "no_portfolio",
+    portfolio_data: portfolio,
+  }
   
-  // Usamos useChat de forma directa
   const chat = useChat({
-    api: '/api/chat',
-    body: { 
-      portfolio_status: portfolio ? "updated" : "no_portfolio",
-      portfolio_data: portfolio 
-    },
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+      body: requestBody,
+    }),
     onError: (err: any) => setServerError("Error de la IA: " + err.message),
   })
 
@@ -34,36 +37,39 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [chat.messages, isLoading])
 
+  const getMessageText = (message: any) => {
+    if (typeof message?.content === "string" && message.content.trim()) {
+      return message.content.trim()
+    }
+
+    if (Array.isArray(message?.parts)) {
+      return message.parts
+        .filter((part: any) => part?.type === "text" && typeof part?.text === "string")
+        .map((part: any) => part.text)
+        .join(" ")
+        .trim()
+    }
+
+    return ""
+  }
+
   /**
-   * FUNCIÓN DE ENVÍO UNIVERSAL (ESTÁNDAR SENIOR)
-   * No depende de 'append'. Usa el flujo de formulario nativo que es infalible.
+   * Envía mensajes usando la API nativa del hook para evitar desincronización
+   * entre el input local y el estado interno del chat.
    */
   const handleUniversalSend = async (text: string) => {
     if (!text.trim() || isLoading) return
     setServerError(null)
 
-    // 1. Intentamos usar append si existe (más rápido)
-    if (typeof chat.append === 'function') {
-      try {
-        await chat.append({ role: 'user', content: text.trim() })
-        setLocalInput("")
-        return
-      } catch (e) {
-        console.warn("Append falló, usando fallback de formulario...");
-      }
+    try {
+      await chat.sendMessage(
+        { text: text.trim() },
+        { body: requestBody }
+      )
+      setLocalInput("")
+    } catch (error: any) {
+      setServerError("Error de la IA: " + (error?.message ?? "No se pudo enviar el mensaje"))
     }
-
-    // 2. Fallback de seguridad: Inyectamos y disparamos el evento de formulario
-    // Esto funciona incluso si la SDK no ha terminado de cargar 'append'
-    setLocalInput(text.trim())
-    setTimeout(() => {
-      if (typeof chat.handleSubmit === 'function') {
-        chat.handleSubmit({ preventDefault: () => {} } as any)
-        setLocalInput("")
-      } else {
-        setServerError("El chat todavía está cargando. Esperá 2 segundos...")
-      }
-    }, 100)
   }
 
   const suggestedPrompts = [
@@ -105,7 +111,7 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
 
             {chat.messages.map((m: any) => (
               <div key={m.id} className="flex flex-col gap-2">
-                {m.content && <ChatMessage role={m.role}>{m.content}</ChatMessage>}
+                {getMessageText(m) && <ChatMessage role={m.role}>{getMessageText(m)}</ChatMessage>}
                 {m.toolInvocations?.map((ti: any) => {
                   if (ti.toolName === 'getHistoricalPerformance' && ti.state === 'result' && ti.result?.data) {
                     return (
@@ -126,9 +132,6 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
           input={localInput}
           handleInputChange={(e) => {
             setLocalInput(e.target.value)
-            if (typeof chat.handleInputChange === 'function') {
-              chat.handleInputChange(e)
-            }
           }}
           handleSubmit={(e) => {
             e.preventDefault()
