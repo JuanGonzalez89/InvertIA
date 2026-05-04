@@ -53,6 +53,19 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
     return ""
   }
 
+  const TypingIndicator = () => (
+    <ChatMessage role="assistant">
+      <div className="flex items-center gap-2">
+        <span>Escribiendo</span>
+        <span className="flex items-center gap-1" aria-hidden>
+          <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.2s]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.1s]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce" />
+        </span>
+      </div>
+    </ChatMessage>
+  )
+
   /**
    * Envía mensajes usando la API nativa del hook para evitar desincronización
    * entre el input local y el estado interno del chat.
@@ -124,6 +137,13 @@ export function ChatPanel({ portfolio }: { portfolio?: any }) {
                 })}
               </div>
             ))}
+
+            {isLoading && (
+              <div className="flex flex-col gap-2">
+                <TypingIndicator />
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>
