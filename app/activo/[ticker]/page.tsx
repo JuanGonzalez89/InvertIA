@@ -4,8 +4,15 @@ import { LineChart } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function AssetDetailPage({ params }: { params: Promise<{ ticker: string }> }) {
+export default async function AssetDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ ticker: string }>;
+  searchParams: Promise<{ market?: string }>;
+}) {
   const { ticker: rawTicker } = await params;
+  const { market } = await searchParams;
   const ticker = decodeURIComponent(rawTicker);
 
   return (
@@ -15,7 +22,7 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ ti
         eyebrow="Detalle de activo"
         title={ticker}
       />
-      <AssetDetailView ticker={ticker} />
+      <AssetDetailView ticker={ticker} market={market === "local" || market === "global" ? market : undefined} />
     </div>
   );
 }
