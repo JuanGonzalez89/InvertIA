@@ -293,7 +293,15 @@ export function MarketSearch() {
 
             <CommandGroup heading="Sugerencias del mercado">
               {filtered.map((item) => (
-                <CommandItem key={item.ticker} onSelect={() => selectItem(item.ticker)}>
+                <CommandItem
+                  key={item.ticker}
+                  onSelect={() =>
+                    selectItem(
+                      item.ticker,
+                      scope === "local" ? "local" : scope === "global" ? "global" : undefined
+                    )
+                  }
+                >
                   <div className="flex w-full items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-sm font-semibold">{item.ticker}</div>
