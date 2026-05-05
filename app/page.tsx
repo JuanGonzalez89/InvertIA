@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth/get-current-user"
 import { getBCBAMarketStatus } from "@/lib/market/market-status"
 import { getTopMovers } from "@/lib/services/market.service"
 import { getPortfolio, getRecentOrders } from "@/lib/services/portfolio.service"
+import { AutoRefresh } from "@/components/dashboard/auto-refresh"
 
 export const dynamic = "force-dynamic"
 
@@ -58,6 +59,7 @@ export default async function Page() {
           </section>
         ) : user && portfolio ? (
           <>
+            <AutoRefresh enabled={marketStatus.isOpen} />
             <WelcomeBanner
               userName={user.name}
               marketOpen={marketStatus.isOpen}

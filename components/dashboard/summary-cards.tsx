@@ -10,7 +10,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { Portfolio } from "@/lib/types/portfolio"
-import { formatARS, formatPercent } from "@/lib/utils"
+import { formatARS, formatPercent, formatDistanceToNow } from "@/lib/utils"
+import { getBCBAMarketStatus } from "@/lib/market/market-status"
 
 interface SummaryCardProps {
   label: string
@@ -108,13 +109,18 @@ export function SummaryCards({ portfolio }: { portfolio: Portfolio }) {
     safeGainLossPercent,
   )}`
 
-  // Lógica de "Actualizado" basada en datos reales
+  // Lógica de "Actualizado" basada en datos reales y estado de mercado
   const lastUpdate = portfolio.lastMarketUpdate ? new Date(portfolio.lastMarketUpdate) : new Date();
-  const isWeekend = [0, 6].includes(new Date().getDay());
+  const marketStatus = getBCBAMarketStatus();
 
-  const updateLabel = isWeekend
-    ? `Cierre de mercado (${lastUpdate.toLocaleDateString("es-AR", { day: 'numeric', month: 'short' })})`
-    : `Vivo: hace ${Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s`;
+  let updateLabel = "";
+  if (marketStatus.isOpen) {
+    updateLabel = `Vivo: hace ${formatDistanceToNow(lastUpdate)}`;
+  } else if (marketStatus.closedSince) {
+    updateLabel = `Cerró hace ${formatDistanceToNow(marketStatus.closedSince)}`;
+  } else {
+    updateLabel = `Cierre: ${lastUpdate.toLocaleDateString("es-AR", { day: 'numeric', month: 'short' })}`;
+  }
 
   return (
     <section aria-labelledby="summary-title">
