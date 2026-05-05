@@ -81,7 +81,6 @@ export function AppHeader() {
               InvertIA
             </span>
             <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80">
-              AI Financial Lab
             </span>
           </div>
         </Link>

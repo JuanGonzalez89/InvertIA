@@ -6,14 +6,14 @@ Este archivo sirve para dar contexto a cualquier IA (Claude, Gemini, GPT) sobre 
 - **Nombre:** InvertIA
 - **Objetivo:** Portfolio-Manager inteligente enfocado en el mercado argentino (CEDEARs, Bonos, Acciones) que utiliza agentes de IA para ayudar en la toma de decisiones financieras.
 - **Evento:** Hackathon "Zero to Agent" (Vercel).
-- **Track:** Track 2 (v0 + MCP - Model Context Protocol).
+- **Track:** Track 2 - **"v0 + MCPs"** (Model Context Protocol), elegido para el hackathon "Zero to Agent".
 
 ## 🛠️ Stack Tecnológico
 - **Framework:** Next.js (App Router) + React 19.
 - **Estilos:** Tailwind CSS (v4).
 - **Estado Global:** Zustand (solo para estado de UI y caché de cliente).
 - **Autenticación:** NextAuth.js / Clerk (Fase 3).
-- **IA:** Vercel AI SDK + AI Gateway.
+- **IA:** Vercel AI SDK + AI Gateway (componente central para la construcción de agentes del hackathon).
 - **Componentes:** Radix UI / shadcn (generados inicialmente por v0).
 
 ## 🏗️ Arquitectura (Server-First)

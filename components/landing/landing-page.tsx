@@ -125,14 +125,13 @@ export function LandingPage() {
           </h1>
 
           <p className="mx-auto mb-10 max-w-2xl text-pretty text-lg text-muted-foreground md:text-xl">
-            Gestioná tu cartera con análisis de IA, datos en tiempo real y herramientas
-            profesionales diseñadas para el inversor argentino.
+            InvertIA fue desarrollado para el hackathon "Zero to Agent" de Vercel, utilizando el stack v0 + MCPs (Model Context Protocol) y Vercel AI SDK, siguiendo buenas prácticas de arquitectura server-first.
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button asChild size="lg" className="w-full bg-primary px-8 text-base text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90 sm:w-auto">
               <Link href="/sign-up">
-                Ver demo
+                Conocé el Stack
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
