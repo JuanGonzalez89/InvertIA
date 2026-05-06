@@ -66,7 +66,7 @@ export default function RootLayout({
               {children}
 
               <footer className="pt-4 pb-2 text-center font-mono text-[11px] text-muted-foreground">
-                InvertIA · v1.0 · Datos de mercado simulados con fines de demostración
+                InvertIA · v1.0 · Datos de mercado reales y actualizados
               </footer>
             </main>
           </div>

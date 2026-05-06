@@ -16,6 +16,10 @@ export interface Asset {
   currency: 'ARS' | 'USD'; // Moneda del activo (CEDEARs y BCBA locales = ARS, Bonos USD = USD)
   dailyChangePercent: number;
   totalGainPercent: number;
+  investedValueArs?: number;
+  currentPriceArs?: number;
+  currentValueArs?: number;
+  gainLossValueArs?: number;
   sparkline?: number[];
 }
 
@@ -23,6 +27,7 @@ export interface Portfolio {
   userId: string;
   assets: Asset[];
   liquidityARS: number;   // Pesos disponibles
+  usdArsRate: number;     // Tipo de cambio para convertir activos USD a ARS
   totalInvested: number;  // Calculado
   totalCurrentValue: number; // Calculado
   totalGainLoss: number;  // Calculado

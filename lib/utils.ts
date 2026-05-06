@@ -8,10 +8,25 @@ export function cn(...inputs: ClassValue[]) {
 const arsFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",
+  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+})
+
+const usdFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
 })
 
 export function formatARS(value: number) {
   const formatted = arsFormatter.format(Math.abs(value))
+  return value < 0 ? `-${formatted}` : formatted
+}
+
+export function formatMoney(value: number, currency: 'ARS' | 'USD') {
+  const formatter = currency === 'USD' ? usdFormatter : arsFormatter
+  const formatted = formatter.format(Math.abs(value))
   return value < 0 ? `-${formatted}` : formatted
 }
 

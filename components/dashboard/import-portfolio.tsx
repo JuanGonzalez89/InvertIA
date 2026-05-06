@@ -18,6 +18,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { formatARS } from "@/lib/utils"
 
 type ImportOption = {
@@ -34,7 +41,10 @@ type PreviewRow = {
   price: number
   type: "BUY" | "SELL"
   assetType: "CEDEAR" | "ACCION" | "BONO" | "ETF" | "OTRO"
+  currency?: "ARS" | "USD"
 }
+
+const ASSET_TYPE_OPTIONS: PreviewRow["assetType"][] = ["CEDEAR", "ACCION", "BONO", "ETF", "OTRO"]
 
 const OPTIONS: ImportOption[] = [
   {
@@ -61,13 +71,61 @@ const OPTIONS: ImportOption[] = [
 ]
 
 function parseNumber(value: unknown) {
-  const normalized = String(value ?? "")
-    .replace(/\./g, "")
-    .replace(/,/g, ".")
-    .replace(/[^0-9.-]/g, "")
+  const raw = String(value ?? "").trim()
+  if (!raw) return 0
+
+  const sanitized = raw.replace(/[^0-9,.-]/g, "")
+  const lastComma = sanitized.lastIndexOf(",")
+  const lastDot = sanitized.lastIndexOf(".")
+
+  let normalized = sanitized
+
+  if (lastComma > -1 && lastDot > -1) {
+    if (lastComma > lastDot) {
+      normalized = sanitized.replace(/\./g, "").replace(",", ".")
+    } else {
+      normalized = sanitized.replace(/,/g, "")
+    }
+  } else if (lastComma > -1) {
+    const decimals = sanitized.length - lastComma - 1
+    normalized = decimals > 0 && decimals <= 2 ? sanitized.replace(",", ".") : sanitized.replace(/,/g, "")
+  } else if (lastDot > -1) {
+    const decimals = sanitized.length - lastDot - 1
+    normalized = decimals > 0 && decimals <= 2 ? sanitized : sanitized.replace(/\./g, "")
+  }
 
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function resolveAssetType(row: Record<string, unknown>, ticker: string): PreviewRow["assetType"] {
+  const explicit = String(
+    row.assetType ??
+    row.categoria ??
+    row.clase ??
+    row.tipo ??
+    row.type ??
+    ""
+  ).toUpperCase().trim()
+
+  if (explicit.includes("CEDEAR")) return "CEDEAR"
+  if (explicit.includes("ACCION") || explicit.includes("STOCK")) return "ACCION"
+  if (explicit.includes("BONO") || explicit.includes("BOND")) return "BONO"
+  if (explicit.includes("ETF")) return "ETF"
+
+  const cleanTicker = ticker.toUpperCase().trim()
+  if (cleanTicker.endsWith(".BA")) return "ACCION"
+
+  return "CEDEAR"
+}
+
+function resolveCurrency(row: Record<string, unknown>): PreviewRow["currency"] {
+  const explicitCurrency = String(row.currency ?? row.moneda ?? row.divisa ?? "").toUpperCase().trim()
+
+  if (explicitCurrency === "USD") return "USD"
+  if (explicitCurrency === "ARS") return "ARS"
+
+  return undefined
 }
 
 function normalizeRows(rows: Array<Record<string, unknown>>): PreviewRow[] {
@@ -78,24 +136,18 @@ function normalizeRows(rows: Array<Record<string, unknown>>): PreviewRow[] {
         .trim()
       const quantity = parseNumber(row.quantity ?? row.qty ?? row.cantidad ?? row.cant)
       const price = parseNumber(row.price ?? row.precio ?? row.avgPrice ?? row.valor)
-      const typeRaw = String(row.type ?? row.tipo ?? "BUY").toUpperCase().trim()
+      const rawTypeField = String(row.type ?? row.tipo ?? "").toUpperCase().trim()
+      const looksLikeTradeType = rawTypeField === "BUY" || rawTypeField === "SELL"
+      const typeRaw = looksLikeTradeType ? rawTypeField : "BUY"
       const type: "BUY" | "SELL" = typeRaw === "SELL" ? "SELL" : "BUY"
-
-      // Intento básico de detectar categoría
-      let assetType: "CEDEAR" | "ACCION" | "BONO" | "ETF" | "OTRO" = "OTRO"
-      const typeStr = String(row.assetType ?? row.categoria ?? row.clase ?? "").toUpperCase()
-      
-      if (typeStr.includes("CEDEAR")) assetType = "CEDEAR"
-      else if (typeStr.includes("ACCION") || typeStr.includes("STOCK")) assetType = "ACCION"
-      else if (typeStr.includes("BONO") || typeStr.includes("BOND")) assetType = "BONO"
-      else if (typeStr.includes("ETF")) assetType = "ETF"
-      else if (ticker.includes(".") || ticker.length > 4) assetType = "CEDEAR" 
+      const assetType = resolveAssetType(row, ticker)
+      const currency = resolveCurrency(row)
 
       if (!ticker || quantity <= 0) {
         return null
       }
 
-      return { ticker, quantity, price, type, assetType }
+      return { ticker, quantity, price, type, assetType, currency }
     })
     .filter((row): row is PreviewRow => row !== null)
 }
@@ -367,6 +419,10 @@ export function ImportPortfolio() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2 text-sm text-muted-foreground">
+            Si una fila está ambigua, elegí la categoría correcta antes de importar. Eso evita confundir CEDEARs con acciones locales.
+          </div>
+
           <div className="max-h-[420px] overflow-auto rounded-lg border border-border">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
@@ -374,6 +430,7 @@ export function ImportPortfolio() {
                   <th className="px-3 py-2">Ticker</th>
                   <th className="px-3 py-2">Cantidad</th>
                   <th className="px-3 py-2">Precio</th>
+                  <th className="px-3 py-2">Categoría</th>
                   <th className="px-3 py-2">Tipo</th>
                 </tr>
               </thead>
@@ -383,6 +440,31 @@ export function ImportPortfolio() {
                     <td className="px-3 py-2 font-mono font-semibold">{row.ticker}</td>
                     <td className="px-3 py-2 tabular-nums">{row.quantity}</td>
                     <td className="px-3 py-2 tabular-nums">{formatARS(row.price)}</td>
+                    <td className="px-3 py-2">
+                      <Select
+                        value={row.assetType}
+                        onValueChange={(value) => {
+                          setPreviewRows((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, assetType: value as PreviewRow["assetType"] }
+                                : item,
+                            ),
+                          )
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[132px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ASSET_TYPE_OPTIONS.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
                     <td className="px-3 py-2">
                       <Badge variant={row.type === "BUY" ? "default" : "destructive"}>
                         {row.type}
