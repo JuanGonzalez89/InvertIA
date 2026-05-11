@@ -3,10 +3,10 @@
 import { Bell, Menu, Sparkles, MessageSquare, ArrowUpRight, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { UserButton, SignInButton, useAuth } from "@clerk/nextjs"
+import { UserButton, useAuth } from "@clerk/nextjs"
 import { MarketSearch } from "@/components/dashboard/market-search"
 import {
   DropdownMenu,
@@ -63,6 +63,10 @@ export function AppHeader() {
   ])
 
   const unreadCount = notifications.filter(n => n.unread).length
+
+  if (!userId) {
+    return null
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -173,13 +177,7 @@ export function AppHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {userId ? (
-            <UserButton />
-          ) : (
-            <Button variant="default" asChild className="h-8">
-              <SignInButton mode="modal">Iniciar Sesión</SignInButton>
-            </Button>
-          )}
+          <UserButton />
 
           {/* Mobile menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
