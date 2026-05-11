@@ -45,64 +45,67 @@ export const getCurrentUser = async () => {
   const fallbackUser = buildFallbackUser(user);
 
   try {
-    return await syncCurrentUserWithDatabase();
+    return await syncCurrentUserWithDatabase(user, fallbackUser);
   } catch (error) {
     console.error("Error al obtener o sincronizar usuario con Prisma:", error);
     return fallbackUser;
   }
 };
 
-export async function syncCurrentUserWithDatabase() {
-  const user = await currentUser();
+export async function syncCurrentUserWithDatabase(
+  user?: Awaited<ReturnType<typeof currentUser>>,
+  fallbackUser?: AppUser,
+) {
+  const resolvedUser = user ?? await currentUser();
 
-  if (!user) {
+  if (!resolvedUser) {
     return null;
   }
 
-  const fallbackUser = buildFallbackUser(user);
+  const resolvedFallbackUser = fallbackUser ?? buildFallbackUser(resolvedUser);
 
   const byExternalId = await db.user.findUnique({
-    where: { externalAuthId: user.id },
+    where: { externalAuthId: resolvedUser.id },
   });
 
   if (byExternalId) {
     return {
       ...byExternalId,
-      twoFactorEnabled: Boolean(user.publicMetadata?.twoFactorEnabled),
+      twoFactorEnabled: Boolean(resolvedUser.publicMetadata?.twoFactorEnabled),
     };
   }
 
   const byEmail = await db.user.findUnique({
-    where: { email: fallbackUser.email },
+    where: { email: resolvedFallbackUser.email },
   });
 
   if (byEmail) {
     const updatedUser = await db.user.update({
       where: { id: byEmail.id },
       data: {
-        externalAuthId: user.id,
-        name: fallbackUser.name,
-        avatarUrl: user.imageUrl,
+        externalAuthId: resolvedUser.id,
+        name: resolvedFallbackUser.name,
+        avatarUrl: resolvedUser.imageUrl,
       },
     });
 
     return {
       ...updatedUser,
-      twoFactorEnabled: Boolean(user.publicMetadata?.twoFactorEnabled),
+      twoFactorEnabled: Boolean(resolvedUser.publicMetadata?.twoFactorEnabled),
     };
   }
 
   const createdUser = await db.user.create({
     data: {
-      externalAuthId: user.id,
-      name: fallbackUser.name,
-      email: fallbackUser.email,
-      avatarUrl: user.imageUrl,
+      externalAuthId: resolvedUser.id,
+      name: resolvedFallbackUser.name,
+      email: resolvedFallbackUser.email,
+      avatarUrl: resolvedUser.imageUrl,
     },
   });
 
   return {
     ...createdUser,
-    twoFactorEnabled: Boolean(user.publicMetadata?.twoFactorEnabled),
+    twoFactorEnabled: Boolean(resolvedUser.publicMetadata?.twoFactorEnabled),
   };
 }

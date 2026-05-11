@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { Bell, Menu, Sparkles, MessageSquare, ArrowUpRight, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -7,7 +8,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { UserButton, useAuth } from "@clerk/nextjs"
-import { MarketSearch } from "@/components/dashboard/market-search"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+const MarketSearch = dynamic(
+  () => import("@/components/dashboard/market-search").then((mod) => mod.MarketSearch),
+  {
+    ssr: false,
+    loading: () => (
+      <button
+        type="button"
+        className="hidden md:flex h-10 w-full max-w-md items-center gap-2 rounded-lg border border-border bg-card px-3 text-left"
+        aria-label="Buscar activos"
+        disabled
+      >
+        <Bell className="h-4 w-4 text-muted-foreground" aria-hidden />
+        <span className="font-mono text-sm text-muted-foreground">
+          Buscar activos, CEDEARs o bonos...
+        </span>
+      </button>
+    ),
+  }
+)
 
 const NAV = [
   { label: "Inicio", href: "/" },

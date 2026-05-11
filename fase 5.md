@@ -1,6 +1,6 @@
-# Fase 5: Pulido de cartera y UX visual
+# Fase 5: Pulido de cartera, UX visual y rendimiento
 
-Esta fase documenta los cambios hechos sobre la vista de cartera para mejorar legibilidad, consistencia visual y precisión en la interpretación de datos reales.
+Esta fase documenta los cambios hechos sobre la vista de cartera y el shell principal para mejorar legibilidad, consistencia visual, rendimiento y precisión en la interpretación de datos reales.
 
 ## Objetivo
 
@@ -16,6 +16,10 @@ Refinar la experiencia del usuario en la sección `Mi cartera` para que los valo
 - El menú de acciones mantiene la edición de posición como panel independiente.
 - Se corrigió el flujo de `Editar posición` para que abra el diálogo correctamente desde el menú contextual.
 - Se actualizó el texto global del footer para reflejar que la app trabaja con datos reales y actualizados.
+- El navbar principal quedó montado solo en el shell autenticado, y la landing pública quedó más liviana al no cargar ese chrome visual cuando el usuario no inició sesión.
+- El buscador del navbar se carga de forma diferida para reducir el peso inicial del header y evitar que bloquee la navegación.
+- La resolución del usuario autenticado dejó de pedir a Clerk dos veces por request, reutilizando el `currentUser()` ya resuelto antes de sincronizar con la base de datos.
+- Se agregó un `loading` global para que los cambios de ruta muestren feedback inmediato mientras Next resuelve la nueva página.
 
 ## Resultado esperado
 
@@ -29,3 +33,5 @@ Refinar la experiencia del usuario en la sección `Mi cartera` para que los valo
 - El render de los importes usa formateo sin decimales.
 - La lógica de cálculo se mantiene separada de la presentación.
 - La tabla prioriza la legibilidad antes que condensar demasiada información en un espacio reducido.
+- La app quedó validada con `pnpm build` y compiló sin errores.
+- Next.js mostró una advertencia existente sobre `experimental.turbo` en `next.config.mjs`, pero no bloqueó el build.
