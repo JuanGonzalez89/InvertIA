@@ -9,7 +9,6 @@ import {
   Trash2,
   PlusIcon,
 } from "lucide-react"
-import { Sparkline } from "./sparkline"
 import type { Asset } from "@/lib/types/portfolio"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,17 +18,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { cn, formatARS } from "@/lib/utils"
+import { cn, formatARS, formatMoney } from "@/lib/utils"
 import { clearPortfolio, deletePosition } from "@/lib/services/actions.service"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { NewTransactionDialog } from "./new-transaction-dialog"
+import { EditPositionDialog } from "./edit-position-dialog"
+import React from "react"
 
-const TYPE_COLORS: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
+  ACCION: "Acción",
+  CEDEAR: "CEDEAR",
+  ETF: "ETF",
+  BONO: "Bono",
+}
+
+const TYPE_STYLES: Record<string, string> = {
   ACCION: "bg-primary/10 text-primary",
-  CEDEAR: "bg-chart-3/15 text-chart-3",
-  BONO: "bg-chart-4/15 text-chart-4",
-  ETF: "bg-secondary text-foreground",
+  CEDEAR: "bg-cyan-500/10 text-cyan-400",
+  ETF: "bg-emerald-500/10 text-emerald-400",
+  BONO: "bg-amber-500/10 text-amber-400",
 }
 
 export function PortfolioHoldings({
@@ -44,6 +52,8 @@ export function PortfolioHoldings({
   userId?: string
 }) {
   const router = useRouter()
+  const [editingAsset, setEditingAsset] = React.useState<Asset | null>(null)
+  const suppressNextRowNavigationRef = React.useRef(false)
   const list = assets ?? []
   const hasActions = showActions && list.length > 0
 
@@ -77,8 +87,15 @@ export function PortfolioHoldings({
   }
 
   const openAssetDetail = (ticker: string) => {
+    if (suppressNextRowNavigationRef.current) {
+      suppressNextRowNavigationRef.current = false
+      return
+    }
+
     router.push(`/activo/${encodeURIComponent(ticker)}`)
   }
+
+  const formatArsValue = (value: number) => formatMoney(Math.round(value), 'ARS')
 
   return (
     <section
@@ -127,30 +144,33 @@ export function PortfolioHoldings({
         className={cn(
           "hidden gap-3 border-b border-border px-5 py-2 md:grid",
           hasActions
-            ? "md:grid-cols-[1.6fr_0.7fr_0.6fr_1fr_1fr_0.8fr_0.3fr]"
-            : "md:grid-cols-[1.6fr_0.7fr_0.6fr_1fr_1fr_0.8fr]",
+            ? "md:grid-cols-[1.45fr_0.82fr_0.7fr_0.7fr_0.95fr_0.95fr_0.85fr_0.3fr]"
+            : "md:grid-cols-[1.45fr_0.82fr_0.7fr_0.7fr_0.95fr_0.95fr_0.85fr]",
         )}
       >
         <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          Activo
+          Ticker
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           Tipo
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground text-right">
-          Cant.
+        <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Nominales
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground text-right">
+        <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           Precio
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground text-right">
-          Valor / Var.
+        <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          V. Actual
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground text-right">
-          7d
+        <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          V. Inicial
+        </div>
+        <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Rendimiento
         </div>
         {hasActions && (
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground text-right">
+          <div className="text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Acciones
           </div>
         )}
@@ -177,14 +197,16 @@ export function PortfolioHoldings({
       ) : (
         <ul className="divide-y divide-border">
           {list.map((asset) => {
-            const total = asset.quantity * (asset.currentPrice || asset.avgBuyPrice || 0)
-            const delta = Number.isFinite(asset.dailyChangePercent)
-              ? asset.dailyChangePercent
-              : 0
-            const positive = delta >= 0
+            const currentPrice = asset.currentPriceArs ?? asset.currentPrice ?? asset.avgBuyPrice ?? 0
+            const initialPrice = asset.avgBuyPrice ?? 0
+            const initialValue = asset.investedValueArs ?? (asset.quantity * initialPrice)
+            const currentValue = asset.currentValueArs ?? (asset.quantity * currentPrice)
+            const gainLoss = asset.gainLossValueArs ?? (currentValue - initialValue)
+            const gainLossPercent = initialValue > 0 ? (gainLoss / initialValue) * 100 : 0
+            const positive = gainLoss >= 0
             return (
               <li
-                key={asset.ticker}
+                key={asset.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => openAssetDetail(asset.ticker)}
@@ -197,8 +219,8 @@ export function PortfolioHoldings({
                 className={cn(
                   "grid cursor-pointer items-center gap-3 px-5 py-3 transition-colors hover:bg-secondary/40",
                   hasActions
-                    ? "grid-cols-[1.4fr_1fr_0.8fr_auto] md:grid-cols-[1.6fr_0.7fr_0.6fr_1fr_1fr_0.8fr_0.3fr]"
-                    : "grid-cols-[1.6fr_1fr_0.8fr] md:grid-cols-[1.6fr_0.7fr_0.6fr_1fr_1fr_0.8fr]",
+                    ? "grid-cols-[1fr_auto] md:grid-cols-[1.45fr_0.82fr_0.7fr_0.7fr_0.95fr_0.95fr_0.85fr_0.3fr]"
+                    : "grid-cols-[1fr] md:grid-cols-[1.45fr_0.82fr_0.7fr_0.7fr_0.95fr_0.95fr_0.85fr]",
                 )}
               >
                 {/* Asset */}
@@ -213,33 +235,80 @@ export function PortfolioHoldings({
                     <div className="truncate text-[11px] text-muted-foreground">
                       {asset.name}
                     </div>
+                    <div className="mt-1 md:hidden">
+                      <span
+                        className={`inline-flex rounded-md px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider ${TYPE_STYLES[asset.type?.toUpperCase() ?? ""] ?? "bg-secondary text-muted-foreground"}`}
+                      >
+                        {TYPE_LABELS[asset.type?.toUpperCase() ?? ""] ?? asset.type}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Type */}
-                <div className="hidden md:block">
+                <div className="hidden md:flex items-center justify-center">
                   <span
-                    className={`inline-flex rounded-md px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider ${TYPE_COLORS[asset.type?.toUpperCase() ?? ""]}`}
+                    className={`inline-flex rounded-md px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider ${TYPE_STYLES[asset.type?.toUpperCase() ?? ""] ?? "bg-secondary text-muted-foreground"}`}
                   >
-                    {asset.type}
+                    {TYPE_LABELS[asset.type?.toUpperCase() ?? ""] ?? asset.type}
                   </span>
                 </div>
 
-                {/* Qty */}
-                <div className="hidden md:block text-right font-mono text-sm tabular-nums text-foreground">
+                <div className="grid gap-2 text-[11px] text-muted-foreground md:hidden">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="font-mono uppercase tracking-wider">Nominales</div>
+                      <div className="font-mono text-sm tabular-nums text-foreground">{asset.quantity}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono uppercase tracking-wider">Precio</div>
+                      <div className="font-mono text-sm tabular-nums text-foreground">{formatArsValue(currentPrice)}</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="font-mono uppercase tracking-wider">V. Actual</div>
+                      <div className="font-mono text-sm tabular-nums text-foreground">{formatArsValue(currentValue)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono uppercase tracking-wider">V. Inicial</div>
+                      <div className="font-mono text-sm tabular-nums text-foreground">{formatArsValue(initialValue)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono uppercase tracking-wider">Rendimiento</span>
+                    <span
+                      className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${positive
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : "bg-red-500/10 text-red-500"
+                        }`}
+                    >
+                      {positive ? (
+                        <ArrowUpRight className="h-3 w-3" aria-hidden />
+                      ) : (
+                        <ArrowDownRight className="h-3 w-3" aria-hidden />
+                      )}
+                      {`${gainLossPercent >= 0 ? "+" : ""}${gainLossPercent.toFixed(2)}%`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hidden md:flex items-center justify-center font-mono text-sm tabular-nums text-foreground">
                   {asset.quantity}
                 </div>
 
-                {/* Price */}
-                <div className="hidden md:block text-right font-mono text-sm tabular-nums text-foreground">
-                  {formatARS((asset.currentPrice ?? asset.avgBuyPrice) || 0)}
+                <div className="hidden md:flex items-center justify-center font-mono text-sm tabular-nums text-foreground">
+                  {formatArsValue(currentPrice)}
                 </div>
 
-                {/* Value / delta */}
-                <div className="text-right">
-                  <div className="font-mono text-sm font-medium tabular-nums text-foreground">
-                    {formatARS(total)}
-                  </div>
+                <div className="hidden md:flex items-center justify-center font-mono text-sm tabular-nums text-foreground">
+                  {formatArsValue(currentValue)}
+                </div>
+
+                <div className="hidden md:flex items-center justify-center font-mono text-sm tabular-nums text-foreground">
+                  {formatArsValue(initialValue)}
+                </div>
+
+                <div className="hidden md:flex items-center justify-center">
                   <div
                     className={`inline-flex items-center justify-end gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${positive
                         ? "bg-emerald-500/10 text-emerald-500"
@@ -251,17 +320,12 @@ export function PortfolioHoldings({
                     ) : (
                       <ArrowDownRight className="h-3 w-3" aria-hidden />
                     )}
-                    {`${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%`}
+                    {`${gainLossPercent >= 0 ? "+" : ""}${gainLossPercent.toFixed(2)}%`}
                   </div>
                 </div>
 
-                {/* Sparkline */}
-                <div className="h-10 w-full">
-                  <Sparkline data={asset.sparkline ?? []} positive={positive} className="h-full w-full" />
-                </div>
-
                 {hasActions && (
-                  <div className="flex justify-end items-center">
+                  <div className="hidden items-center justify-end md:flex">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -275,9 +339,15 @@ export function PortfolioHoldings({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onSelect={() => {
+                            suppressNextRowNavigationRef.current = true
+                            setEditingAsset(asset)
+                          }}
+                        >
                           <Pencil className="h-4 w-4" aria-hidden />
-                          Modificar cantidad
+                          Editar posición
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
@@ -296,6 +366,19 @@ export function PortfolioHoldings({
           })}
         </ul>
       )}
+
+      {userId ? (
+        <EditPositionDialog
+          userId={userId}
+          asset={editingAsset}
+          open={editingAsset !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingAsset(null)
+            }
+          }}
+        />
+      ) : null}
     </section>
   )
 }

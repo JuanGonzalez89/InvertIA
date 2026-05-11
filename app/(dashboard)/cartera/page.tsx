@@ -51,13 +51,17 @@ export default async function CarteraPage() {
   // Cálculo dinámico de distribución por tipo
   const allocationMap = portfolio.assets.reduce((acc, asset) => {
     const type = asset.type || 'OTRO';
-    const value = asset.quantity * (asset.currentPrice || 0);
+    const value = asset.currentValueArs
+      ?? (asset.currency === 'USD'
+        ? asset.quantity * (asset.currentPrice || 0) * (portfolio.usdArsRate || 1)
+        : asset.quantity * (asset.currentPrice || 0));
     acc[type] = (acc[type] || 0) + value;
     return acc;
   }, {} as Record<string, number>);
 
   const ALLOCATION = Object.entries(allocationMap).map(([type, value]) => {
     const labels: Record<string, string> = {
+      'ACCION': 'Acciones',
       'STOCK': 'Acciones',
       'BOND': 'Bonos',
       'CEDEAR': 'CEDEARs',
@@ -65,6 +69,7 @@ export default async function CarteraPage() {
       'OTRO': 'Otros'
     };
     const colors: Record<string, string> = {
+      'ACCION': 'bg-primary',
       'STOCK': 'bg-primary',
       'BOND': 'bg-chart-4',
       'CEDEAR': 'bg-chart-3',
@@ -167,17 +172,17 @@ export default async function CarteraPage() {
 
       <ImportPortfolio />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2.35fr)_minmax(320px,0.85fr)]">
+        <div className="space-y-6">
           <PortfolioHoldings 
             assets={portfolio.assets} 
             showActions 
-            emptyActionHref="#import-portfolio" 
+            emptyActionHref="#importar" 
             userId={user.id} 
           />
         </div>
 
-        <aside className="space-y-6" aria-label="Distribución">
+        <aside className="space-y-6 xl:pt-0" aria-label="Distribución">
 
           <section
             aria-labelledby="allocation-title"

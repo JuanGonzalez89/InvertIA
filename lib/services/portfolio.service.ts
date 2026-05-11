@@ -8,6 +8,7 @@
 import { db } from '@/lib/prisma';
 import type { Portfolio, Order, AgentContext } from '@/lib/types/portfolio';
 import { QUOTE_FIELDS, toBCBASymbol, yahooFinance } from '@/lib/yahoo';
+import { resolveAssetStorageSymbol, resolvePreferredQuoteMarket } from '@/lib/instrument';
 
 type FreshMarketQuoteSnapshot = {
   ticker: string;
@@ -17,6 +18,31 @@ type FreshMarketQuoteSnapshot = {
   changePercent: number;
   marketTime?: number;
 };
+
+async function getUsdArsRate(): Promise<number> {
+  try {
+    const quote = await yahooFinance.quote('USDARS=X', { fields: QUOTE_FIELDS });
+    const rate = quote?.regularMarketPrice;
+    return typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1;
+  } catch (error) {
+    console.error('[PortfolioService] getUsdArsRate failed:', error);
+    return 1;
+  }
+}
+
+function mapDbAssetTypeToUi(type: string): 'ACCION' | 'CEDEAR' | 'BONO' | 'ETF' {
+  switch (type?.toUpperCase()) {
+    case 'CEDEAR':
+      return 'CEDEAR';
+    case 'BOND':
+      return 'BONO';
+    case 'ETF':
+      return 'ETF';
+    case 'STOCK':
+    default:
+      return 'ACCION';
+  }
+}
 
 async function getFreshMarketQuote(symbol: string): Promise<FreshMarketQuoteSnapshot | null> {
   const candidate = toBCBASymbol(symbol);
@@ -65,6 +91,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       include: { asset: true }
     });
     const safePositions = Array.isArray(positions) ? positions : [];
+    const usdArsRate = await getUsdArsRate();
 
     // Obtener precios para todas las posiciones
     const quoteEntries: Array<[string, FreshMarketQuoteSnapshot | null]> = await Promise.all(
@@ -77,38 +104,56 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     const quoteMap = new Map<string, FreshMarketQuoteSnapshot | null>(quoteEntries);
     let totalInvested = 0;
     let totalCurrentValue = 0;
+    const warnings: string[] = [];
 
     const mappedAssets = safePositions.map((pos: any) => {
-      // Solo usamos cotización externa cuando viene en ARS; si no, preservamos el precio importado.
       const invested = pos.quantity * pos.avgPrice;
       const quote = quoteMap.get(pos.id);
-      const externalPriceIsARS = quote?.currency === 'ARS';
-      const currentPrice = externalPriceIsARS ? quote?.price ?? pos.avgPrice : pos.avgPrice;
-      const currentValue = pos.quantity * currentPrice;
+      const currentPrice = quote?.price ?? pos.avgPrice;
+      const positionCurrency = pos.currency === 'USD' ? 'USD' : 'ARS';
+      const marketCurrency = quote?.currency === 'USD'
+        ? 'USD'
+        : quote?.currency === 'ARS'
+          ? 'ARS'
+          : positionCurrency;
 
-      totalInvested += invested;
-      totalCurrentValue += currentValue;
+      const investedValueArs = positionCurrency === 'USD' ? invested * usdArsRate : invested;
+      const currentValueRaw = pos.quantity * currentPrice;
+      const currentValueArs = marketCurrency === 'USD' ? currentValueRaw * usdArsRate : currentValueRaw;
+      const currentPriceArs = marketCurrency === 'USD' ? currentPrice * usdArsRate : currentPrice;
+      const gainLossValueArs = currentValueArs - investedValueArs;
 
-      const totalGainPercent = pos.avgPrice > 0 ? ((currentPrice / pos.avgPrice) - 1) * 100 : 0;
+      totalInvested += investedValueArs;
+      totalCurrentValue += currentValueArs;
+
+      const totalGainPercent = investedValueArs > 0
+        ? ((currentValueArs / investedValueArs) - 1) * 100
+        : 0;
+
+      if (!quote) {
+        warnings.push(`Sin cotización viva de Yahoo para ${pos.asset.symbol}; se muestra el último precio cargado.`);
+      }
 
       return {
         id: pos.id as string,
         ticker: pos.asset.symbol as string,
         name: pos.asset.name as string,
-        type: pos.asset.type as any,
+        type: mapDbAssetTypeToUi(pos.asset.type),
         quantity: pos.quantity as number,
         avgBuyPrice: pos.avgPrice as number,
         currentPrice: currentPrice as number,
-        currency: pos.asset.currency as 'ARS' | 'USD',
+        currency: marketCurrency as 'ARS' | 'USD',
         dailyChangePercent: (quote?.changePercent ?? 0) as number,
         totalGainPercent: totalGainPercent as number,
+        investedValueArs,
+        currentPriceArs,
+        currentValueArs,
+        gainLossValueArs,
       };
     });
 
     const totalGainLoss = totalCurrentValue - totalInvested;
     const gainLossPercent = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
-
-    const warnings: string[] = [];
     if (gainLossPercent > 500) {
       warnings.push("Rendimiento total inusualmente alto (>500%). Revisá tus precios de compra.");
     }
@@ -137,6 +182,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       gainLossPercent,
       assets: mappedAssets,
       lastMarketUpdate,
+      usdArsRate,
       warnings
     };
   } catch (error) {
@@ -192,38 +238,49 @@ export async function executeOrder(
   try {
     // 1. Obtener o crear el activo en la DB
     const cleanTicker = ticker.toUpperCase().trim();
+    const dbTypeMap: Record<string, any> = {
+      CEDEAR: 'CEDEAR',
+      ACCION: 'STOCK',
+      BONO: 'BOND',
+      ETF: 'ETF',
+      OTRO: 'STOCK',
+    };
+    const storedSymbol = resolveAssetStorageSymbol(cleanTicker, assetType);
+    const quoteMarket = resolvePreferredQuoteMarket(cleanTicker, assetType);
     let asset = await db.asset.findUnique({
-      where: { symbol: cleanTicker }
+      where: { symbol: storedSymbol }
     });
+
+    const yahooSymbol = quoteMarket === 'local' ? toBCBASymbol(cleanTicker) : cleanTicker;
 
     if (!asset) {
       console.log(`[PortfolioService] Creando nuevo activo: ${cleanTicker}`);
-      // Heurística para yahooSymbol: si ya tiene punto, asumimos que está completo
-      const yahooSymbol = cleanTicker.includes('.') 
-        ? cleanTicker 
-        : `${cleanTicker}.BA`;
-
-      // Mapear tipos de UI a tipos de DB
-      const dbTypeMap: Record<string, any> = {
-        'CEDEAR': 'CEDEAR',
-        'ACCION': 'STOCK',
-        'BONO': 'BOND',
-        'ETF': 'ETF',
-        'OTRO': 'STOCK'
-      };
-      
       const dbType = dbTypeMap[assetType || 'OTRO'] || 'STOCK';
 
       asset = await db.asset.create({
         data: {
-          symbol: cleanTicker,
+          symbol: storedSymbol,
           name: cleanTicker,
           type: dbType,
           market: 'BCBA', // Por defecto mercado argentino
-          currency: 'ARS',
+          currency: quoteMarket === 'local' ? 'ARS' : 'USD',
           yahooSymbol: yahooSymbol
         }
       });
+    } else {
+      const desiredType = dbTypeMap[assetType || 'OTRO'] || asset.type;
+      const nextYahooSymbol = asset.yahooSymbol ?? yahooSymbol;
+
+      if (asset.type !== desiredType || asset.yahooSymbol !== nextYahooSymbol) {
+        asset = await db.asset.update({
+          where: { id: asset.id },
+          data: {
+            type: desiredType,
+            yahooSymbol: nextYahooSymbol,
+            currency: quoteMarket === 'local' ? 'ARS' : 'USD',
+          },
+        });
+      }
     }
 
     // 2. Registrar la transacción
@@ -236,7 +293,7 @@ export async function executeOrder(
         quantity,
         price: pricePerUnit,
         total: totalAmount,
-        currency: 'ARS',
+        currency: quoteMarket === 'local' ? 'ARS' : 'USD',
         date: new Date(),
         source: 'MANUAL'
       }
@@ -264,7 +321,7 @@ export async function executeOrder(
             assetId: asset.id,
             quantity,
             avgPrice: pricePerUnit,
-            currency: 'ARS'
+            currency: quoteMarket === 'local' ? 'ARS' : 'USD'
           }
         });
       }

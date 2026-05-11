@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,7 @@ import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { executeOrder } from '@/lib/services/portfolio.service';
+import { resolvePreferredQuoteMarket } from '@/lib/instrument';
 
 const formSchema = z.object({
   ticker: z.string().min(1, "El ticker es obligatorio"),
@@ -52,6 +55,8 @@ export function NewTransactionDialog({
   trigger?: React.ReactNode
 }) {
   const router = useRouter();
+  const [quoteStatus, setQuoteStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [quoteLabel, setQuoteLabel] = React.useState<string>('');
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -61,6 +66,54 @@ export function NewTransactionDialog({
       userId: userId,
     }
   });
+
+  const watchedTicker = form.watch('ticker');
+  const watchedAssetType = form.watch('assetType');
+
+  React.useEffect(() => {
+    const ticker = watchedTicker.trim();
+
+    if (!ticker) {
+      setQuoteStatus('idle');
+      setQuoteLabel('');
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setQuoteStatus('loading');
+
+      try {
+        const market = resolvePreferredQuoteMarket(ticker, watchedAssetType);
+        const response = await fetch(`/api/market/quote?ticker=${encodeURIComponent(ticker)}&market=${market}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error('No se pudo obtener la cotización');
+        }
+
+        const payload = await response.json();
+        if (typeof payload?.price === 'number' && Number.isFinite(payload.price)) {
+          form.setValue('price', payload.price, { shouldDirty: true, shouldValidate: true });
+          setQuoteLabel(`${payload.ticker} · ${payload.name}`);
+          setQuoteStatus('ready');
+        } else {
+          throw new Error('Cotización inválida');
+        }
+      } catch (error) {
+        if ((error as any)?.name !== 'AbortError') {
+          setQuoteStatus('error');
+          setQuoteLabel('No encontramos precio automático, podés cargarlo manualmente.');
+        }
+      }
+    }, 300);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [form, watchedTicker, watchedAssetType]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -204,6 +257,15 @@ export function NewTransactionDialog({
                   <FormControl>
                     <Input type="number" step="any" {...field} />
                   </FormControl>
+                  {quoteStatus !== 'idle' ? (
+                    <p className="text-xs text-muted-foreground">
+                      {quoteStatus === 'loading'
+                        ? 'Buscando cotización en Yahoo Finance...'
+                        : quoteStatus === 'ready'
+                          ? `Precio sugerido desde Yahoo · ${quoteLabel}`
+                          : quoteLabel}
+                    </p>
+                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}

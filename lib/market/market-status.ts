@@ -51,23 +51,41 @@ export function getBCBAMarketStatus(now: Date = new Date()) {
 
   const isWeekend = weekday === 0 || weekday === 6;
   const isHoliday = HOLIDAYS_MM_DD.has(holidayKey);
-  const isWithinSession =
-    hour > BCBA_OPEN_HOUR ||
-    (hour === BCBA_OPEN_HOUR && minute >= 0)
-      ? hour < BCBA_CLOSE_HOUR
-      : false;
+  
+  // El mercado abre a las 11:00 y cierra a las 17:00
+  const isAfterOpen = hour > BCBA_OPEN_HOUR || (hour === BCBA_OPEN_HOUR && minute >= 0);
+  const isBeforeClose = hour < BCBA_CLOSE_HOUR;
+  const isWithinSession = isAfterOpen && isBeforeClose;
 
   const isOpen = !isWeekend && !isHoliday && isWithinSession;
 
   let label = "Mercado cerrado";
-  if (isOpen) label = "Mercado abierto";
-  else if (isWeekend) label = "Fin de semana";
-  else if (isHoliday) label = "Feriado";
+  if (isOpen) {
+    label = "Mercado abierto";
+  } else if (isWeekend) {
+    label = "Fin de semana";
+  } else if (isHoliday) {
+    label = "Feriado";
+  } else if (hour >= BCBA_CLOSE_HOUR) {
+    label = "Mercado cerrado (post-cierre)";
+  } else if (hour < BCBA_OPEN_HOUR) {
+    label = "Mercado cerrado (pre-apertura)";
+  }
+
+  // Calculamos el tiempo relativo al cierre si cerró hoy
+  let closedSince: Date | null = null;
+  if (!isOpen && !isWeekend && !isHoliday && hour >= BCBA_CLOSE_HOUR) {
+    closedSince = new Date(now);
+    closedSince.setHours(BCBA_CLOSE_HOUR, 0, 0, 0);
+  }
 
   return {
     isOpen,
     label,
     isWeekend,
     isHoliday,
+    closedSince,
+    currentHour: hour,
+    currentMinute: minute
   };
 }

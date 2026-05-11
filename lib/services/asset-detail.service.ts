@@ -255,8 +255,9 @@ export async function getAssetDetailData(
       })
     : await resolveAssetRecord(requestedTicker);
 
-  const cedearSymbol =
-    asset?.yahooSymbol ?? resolvePreferredSymbol(requestedTicker, market);
+  const cedearSymbol = market === "global"
+    ? requestedTicker
+    : asset?.yahooSymbol ?? resolvePreferredSymbol(requestedTicker, market);
   const isCedear = market === "local"
     ? true
     : market === "global"
