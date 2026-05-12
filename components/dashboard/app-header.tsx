@@ -41,7 +41,7 @@ const NAV = [
   { label: "Inicio", href: "/" },
   { label: "Mi cartera", href: "/cartera" },
   { label: "Mercado", href: "/mercado" },
-  { label: "Movimientos", href: "/movimientos" },
+  { label: "Rendimientos", href: "/rendimientos" },
   { label: "Chat IA", href: "/chat" },
   { label: "Perfil", href: "/perfil" },
 ]

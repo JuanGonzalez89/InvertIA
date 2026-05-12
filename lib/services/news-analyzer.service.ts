@@ -13,6 +13,35 @@ export type AnalyzedNews = {
   impactReason: string;
 };
 
+let groqDisabled = false;
+
+function buildFallbackNews(news: any[]): AnalyzedNews[] {
+  return news.map((n) => ({
+    title: n.title,
+    link: n.link ?? null,
+    source: n.source ?? null,
+    publishedAt: n.publishedAt ?? null,
+    summary: "No se pudo generar el resumen automático.",
+    impact: "Neutral",
+    impactReason: "Análisis técnico no disponible temporalmente.",
+  }));
+}
+
+function isAuthError(error: unknown): boolean {
+  const status = (error as any)?.status ?? (error as any)?.statusCode;
+  const message = String((error as any)?.message ?? "").toLowerCase();
+  const responseBody = String((error as any)?.responseBody ?? "").toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    message.includes("invalid api key") ||
+    message.includes("invalid_api_key") ||
+    responseBody.includes("invalid api key") ||
+    responseBody.includes("invalid_api_key")
+  );
+}
+
 /**
  * Analiza noticias financieras para determinar sentimiento e impacto.
  */
@@ -29,6 +58,10 @@ export async function analyzeNews(ticker: string, news: any[]): Promise<Analyzed
     .slice(0, 4);
 
   if (filteredNews.length === 0) return [];
+
+  if (groqDisabled || !process.env.GROQ_API_KEY?.trim()) {
+    return buildFallbackNews(filteredNews);
+  }
 
   const newsContext = filteredNews.map((n, i) => `[${i}] ${n.title}`).join("\n");
 
@@ -70,16 +103,15 @@ Responde ÚNICAMENTE con el objeto JSON puro, sin explicaciones ni markdown:
       impactReason: analysis[i]?.impactReason || "Sin justificación técnica disponible.",
     }));
   } catch (error) {
-    console.error("[NewsAnalyzer] Error en análisis con Groq:", error);
-    // Fallback elegante
-    return filteredNews.map(n => ({
-      title: n.title,
-      link: n.link ?? null,
-      source: n.source ?? null,
-      publishedAt: n.publishedAt ?? null,
-      summary: "No se pudo generar el resumen automático.",
-      impact: "Neutral",
-      impactReason: "Análisis técnico no disponible temporalmente.",
-    }));
+    const authError = isAuthError(error);
+
+    if (authError) {
+      groqDisabled = true;
+      console.warn("[NewsAnalyzer] Groq auth failed. Desactivando análisis automático.", error);
+    } else {
+      console.error("[NewsAnalyzer] Error en análisis con Groq:", error);
+    }
+
+    return buildFallbackNews(filteredNews);
   }
 }

@@ -145,30 +145,46 @@ function resolvePreferredSymbol(ticker: string, market?: "local" | "global") {
 }
 
 async function fetchMarketSnapshot(symbol: string) {
-  const quote = await yahooFinance.quote(symbol, { fields: QUOTE_FIELDS });
-  const chart = await yahooFinance.chart(symbol, {
-    period1: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    interval: "1d",
-  });
+  try {
+    const [quoteResult, chartResult] = await Promise.allSettled([
+      yahooFinance.quote(symbol, { fields: QUOTE_FIELDS }),
+      yahooFinance.chart(symbol, {
+        period1: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        interval: "1d",
+      }),
+    ]);
 
-  const latestClose = chart.quotes.at(-1)?.close ?? null;
-  const previousClose = chart.meta.previousClose ?? chart.meta.chartPreviousClose ?? latestClose;
-  const currentPrice = safeNumber(quote.regularMarketPrice) ?? chart.meta.regularMarketPrice ?? latestClose ?? 0;
-  const dailyChangeARS = currentPrice - (previousClose ?? currentPrice);
-  const dailyChangePercent = previousClose && previousClose !== 0
-    ? (dailyChangeARS / previousClose) * 100
-    : safeNumber(quote.regularMarketChangePercent) ?? 0;
+    const quote = quoteResult.status === "fulfilled" ? quoteResult.value : null;
+    const chart = chartResult.status === "fulfilled" ? chartResult.value : null;
 
-  return {
-    currentPrice,
-    dailyChangeARS,
-    dailyChangePercent,
-    volume: safeNumber(quote.regularMarketVolume) ?? safeNumber(chart.meta.regularMarketVolume) ?? null,
-    week52Low: safeNumber(chart.meta.fiftyTwoWeekLow) ?? null,
-    week52High: safeNumber(chart.meta.fiftyTwoWeekHigh) ?? null,
-    companyName: quote.shortName ?? chart.meta.longName ?? chart.meta.shortName ?? symbol,
-    chartMeta: chart.meta,
-  };
+    if (!quote && !chart) return null;
+
+    const latestClose = chart?.quotes?.at(-1)?.close ?? null;
+    const previousClose = chart?.meta?.previousClose ?? chart?.meta?.chartPreviousClose ?? latestClose;
+    const currentPrice =
+      safeNumber(quote?.regularMarketPrice) ??
+      chart?.meta?.regularMarketPrice ??
+      latestClose ??
+      0;
+    const dailyChangeARS = currentPrice - (previousClose ?? currentPrice);
+    const dailyChangePercent = previousClose && previousClose !== 0
+      ? (dailyChangeARS / previousClose) * 100
+      : safeNumber(quote?.regularMarketChangePercent) ?? 0;
+
+    return {
+      currentPrice,
+      dailyChangeARS,
+      dailyChangePercent,
+      volume: safeNumber(quote?.regularMarketVolume) ?? safeNumber(chart?.meta?.regularMarketVolume) ?? null,
+      week52Low: safeNumber(chart?.meta?.fiftyTwoWeekLow) ?? null,
+      week52High: safeNumber(chart?.meta?.fiftyTwoWeekHigh) ?? null,
+      companyName: quote?.shortName ?? chart?.meta?.longName ?? chart?.meta?.shortName ?? symbol,
+      chartMeta: chart?.meta,
+    };
+  } catch (error) {
+    console.warn("[AssetDetail] market snapshot failed for", symbol, error);
+    return null;
+  }
 }
 
 async function fetchProfileText(symbol: string): Promise<string | null> {
@@ -183,7 +199,7 @@ async function fetchProfileText(symbol: string): Promise<string | null> {
       null
     );
   } catch (error) {
-    console.error("[AssetDetail] quoteSummary failed for", symbol, error);
+    console.warn("[AssetDetail] quoteSummary failed for", symbol, error);
     return null;
   }
 }
@@ -229,6 +245,69 @@ function mapChartPoints(quotes: Array<{ date: Date; close: number | null }>): As
       date: quote.date.toISOString(),
       close: quote.close as number,
     }));
+}
+
+const BOND_TICKER_REGEX = /^(GD|AY|TX|JX|D|AL|PR|VD)\d{2}[A-Z]?(\.BA)?$/;
+
+function isBondSymbol(ticker: string, assetType?: string) {
+  if (assetType?.toUpperCase() === "BOND") return true;
+  return BOND_TICKER_REGEX.test(ticker.toUpperCase());
+}
+
+function buildSymbolCandidates(symbol: string) {
+  const cleaned = symbol.trim().toUpperCase();
+  const candidates = new Set<string>();
+
+  if (cleaned) {
+    candidates.add(cleaned);
+    if (cleaned.endsWith(".BA")) {
+      candidates.add(cleaned.replace(/\.BA$/, ""));
+    } else {
+      candidates.add(`${cleaned}.BA`);
+    }
+  }
+
+  return Array.from(candidates);
+}
+
+async function fetchChartSafe(symbol: string, period1: Date, interval: RangeConfig["interval"]) {
+  try {
+    return await yahooFinance.chart(symbol, { period1, interval });
+  } catch (error) {
+    console.warn("[AssetDetail] chart failed for", symbol, error);
+    return null;
+  }
+}
+
+async function fetchChartWithFallback(symbols: string[], period1: Date, interval: RangeConfig["interval"]) {
+  for (const symbol of symbols) {
+    const chart = await fetchChartSafe(symbol, period1, interval);
+    if (chart) return { symbol, chart };
+  }
+
+  return { symbol: symbols[0] ?? "", chart: null };
+}
+
+async function fetchMarketSnapshotWithFallback(symbols: string[]) {
+  for (const symbol of symbols) {
+    const snapshot = await fetchMarketSnapshot(symbol);
+    if (snapshot) return { symbol, snapshot };
+  }
+
+  const fallbackSymbol = symbols[0] ?? "";
+  return {
+    symbol: fallbackSymbol,
+    snapshot: {
+      currentPrice: 0,
+      dailyChangeARS: 0,
+      dailyChangePercent: 0,
+      volume: null,
+      week52Low: null,
+      week52High: null,
+      companyName: fallbackSymbol || "N/A",
+      chartMeta: null,
+    },
+  };
 }
 
 export async function getAssetDetailData(
@@ -277,23 +356,25 @@ export async function getAssetDetailData(
   const rangeConfig = getRangeConfig(range);
   const period1 = new Date(Date.now() - rangeConfig.periodDays * 24 * 60 * 60 * 1000);
 
-  const [cedearSnapshot, cedearHistory, underlyingSnapshot, profileText] = await Promise.all([
-    fetchMarketSnapshot(cedearSymbol),
-    yahooFinance.chart(cedearSymbol, {
-      period1,
-      interval: rangeConfig.interval,
-    }),
+  const symbolCandidates = buildSymbolCandidates(cedearSymbol);
+  const shouldFetchProfile = !isBondSymbol(requestedTicker, asset?.type);
+
+  const [snapshotResult, chartResult, underlyingSnapshot, profileText] = await Promise.all([
+    fetchMarketSnapshotWithFallback(symbolCandidates),
+    fetchChartWithFallback(symbolCandidates, period1, rangeConfig.interval),
     underlyingTicker ? fetchMarketSnapshot(underlyingTicker) : Promise.resolve(null),
-    fetchProfileText(underlyingTicker ?? cedearSymbol),
+    shouldFetchProfile ? fetchProfileText(underlyingTicker ?? cedearSymbol) : Promise.resolve(null),
   ]);
 
-  const companyName = asset?.name ?? cedearSnapshot.companyName;
+  const cedearSnapshot = snapshotResult.snapshot;
+  const cedearHistory = chartResult.chart;
+  const companyName = asset?.name ?? cedearSnapshot.companyName ?? requestedTicker;
 
   // Fetch news and analyze them with AI
-  const rawNews = await fetchNews(underlyingTicker ?? cedearSymbol, companyName);
-  const news = await analyzeNews(requestedTicker, rawNews);
+  const rawNews = shouldFetchProfile ? await fetchNews(underlyingTicker ?? cedearSymbol, companyName) : [];
+  const news = rawNews.length > 0 ? await analyzeNews(requestedTicker, rawNews) : [];
 
-  const chartPoints = mapChartPoints(cedearHistory.quotes);
+  const chartPoints = mapChartPoints(cedearHistory?.quotes ?? []);
   const currentPriceARS = cedearSnapshot.currentPrice;
   const underlyingPriceUSD = underlyingSnapshot?.currentPrice ?? null;
   const impliedCCL = cedearRatio && underlyingPriceUSD
@@ -321,6 +402,29 @@ export async function getAssetDetailData(
     impliedCCL,
     about,
     news,
+    chartPoints,
+    chartLabel: rangeConfig.label,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export async function getAssetPerformanceSeries(
+  ticker: string,
+  range: AssetDetailRange = "1Y",
+  market?: "local" | "global"
+) {
+  const requestedTicker = ticker.trim().toUpperCase();
+  const symbol = market === "global"
+    ? requestedTicker
+    : resolvePreferredSymbol(requestedTicker, market);
+  const rangeConfig = getRangeConfig(range);
+  const period1 = new Date(Date.now() - rangeConfig.periodDays * 24 * 60 * 60 * 1000);
+  const candidates = buildSymbolCandidates(symbol);
+  const chartResult = await fetchChartWithFallback(candidates, period1, rangeConfig.interval);
+  const chartPoints = mapChartPoints(chartResult.chart?.quotes ?? []);
+
+  return {
+    ticker: chartResult.symbol || symbol,
     chartPoints,
     chartLabel: rangeConfig.label,
     lastUpdated: new Date().toISOString(),

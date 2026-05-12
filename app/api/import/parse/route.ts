@@ -37,6 +37,7 @@ function normalizeCurrency(row: ImportRow) {
 }
 
 function groupRows(rows: ImportRow[]) {
+  // Agrupa por ticker y tipo, pero mantiene el precio de compra original (NO recalcula promedio)
   const grouped = new Map<string, ImportRow & { totalCost: number }>();
 
   for (const row of rows) {
@@ -58,14 +59,17 @@ function groupRows(rows: ImportRow[]) {
       continue;
     }
 
+    // Suma cantidades, pero NO recalcula el precio de compra: mantiene el primero que puso el usuario
     current.quantity += row.quantity;
     current.totalCost += cost;
-    current.price = current.quantity > 0 ? current.totalCost / current.quantity : 0;
+    // current.price se mantiene fijo como el precio de la primera compra
   }
 
+  // Devuelve la estructura agrupada, manteniendo el precio de compra original
   return Array.from(grouped.values()).map((row) => ({
     ...row,
-    price: row.quantity > 0 ? row.totalCost / row.quantity : 0,
+    price: row.price, // precio de compra original
+    totalCost: row.totalCost,
   }));
 }
 

@@ -174,14 +174,14 @@ export function HomePreviews({
           <div className="flex items-center gap-2">
             <Receipt className="h-4 w-4 text-primary" aria-hidden />
             <h2 id="home-moves" className="text-sm font-semibold text-foreground">
-              Últimos movimientos
+              Rendimiento de activos
             </h2>
           </div>
           <Link
-            href="/movimientos"
+            href="/rendimientos"
             className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-primary"
           >
-            Historial
+            Ver rendimientos
             <ArrowRight className="h-3 w-3" aria-hidden />
           </Link>
         </div>

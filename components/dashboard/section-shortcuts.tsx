@@ -35,11 +35,11 @@ const SHORTCUTS: Shortcut[] = [
     meta: "12 destacadas",
   },
   {
-    href: "/movimientos",
-    title: "Movimientos",
-    description: "Historial de compras, ventas y operaciones.",
+    href: "/rendimientos",
+    title: "Rendimientos",
+    description: "Evolución y performance histórica de tus activos.",
     icon: Receipt,
-    meta: "5 recientes",
+    meta: "Por activo",
   },
   {
     href: "/chat",

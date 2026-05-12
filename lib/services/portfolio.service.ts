@@ -106,7 +106,10 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
     let totalCurrentValue = 0;
     const warnings: string[] = [];
 
+    // Para cada posición, calcula el valor inicial real (total invertido) y el valor actual normalizado
     const mappedAssets = safePositions.map((pos: any) => {
+      // El valor inicial real es la suma de todas las compras (quantity * avgPrice)
+      // Si se quiere mayor precisión, se puede usar la suma de transacciones, pero aquí se asume importación agrupada
       const invested = pos.quantity * pos.avgPrice;
       const quote = quoteMap.get(pos.id);
       const currentPrice = quote?.price ?? pos.avgPrice;
@@ -117,6 +120,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
           ? 'ARS'
           : positionCurrency;
 
+      // Normalización: todo a ARS para el cálculo global
       const investedValueArs = positionCurrency === 'USD' ? invested * usdArsRate : invested;
       const currentValueRaw = pos.quantity * currentPrice;
       const currentValueArs = marketCurrency === 'USD' ? currentValueRaw * usdArsRate : currentValueRaw;
@@ -126,6 +130,7 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
       totalInvested += investedValueArs;
       totalCurrentValue += currentValueArs;
 
+      // Rendimiento normalizado: cómo evolucionó el valor inicial hasta hoy
       const totalGainPercent = investedValueArs > 0
         ? ((currentValueArs / investedValueArs) - 1) * 100
         : 0;
@@ -145,10 +150,10 @@ export async function getPortfolio(userId: string): Promise<Portfolio> {
         currency: marketCurrency as 'ARS' | 'USD',
         dailyChangePercent: (quote?.changePercent ?? 0) as number,
         totalGainPercent: totalGainPercent as number,
-        investedValueArs,
+        investedValueArs, // Valor inicial normalizado
         currentPriceArs,
-        currentValueArs,
-        gainLossValueArs,
+        currentValueArs, // Valor actual normalizado
+        gainLossValueArs, // Ganancia/perdida en ARS
       };
     });
 

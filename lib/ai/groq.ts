@@ -4,7 +4,7 @@ import { createGroq } from "@ai-sdk/groq";
  * Obtiene la API key de Groq.
  */
 function getGroqApiKey(): string {
-  const key = process.env.GROQ_API_KEY;
+  const key = process.env.GROQ_API_KEY?.trim();
   if (!key) {
     throw new Error("GROQ_API_KEY no configurada en el entorno.");
   }
