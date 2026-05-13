@@ -33,7 +33,8 @@ export async function POST() {
     scale: 8,
   })
 
-  await clerkClient.users.updateUserMetadata(userId, {
+  const client = await clerkClient()
+  await client.users.updateUserMetadata(userId, {
     publicMetadata: {
       twoFactorEnabled: true,
     },

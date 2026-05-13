@@ -4,7 +4,7 @@ import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Options } from 'react-markdown';
 
-export const MemoizedReactMarkdown: React.FC<Options> = memo(
+export const MemoizedReactMarkdown: React.FC<Options & { className?: string }> = memo(
   ReactMarkdown,
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&

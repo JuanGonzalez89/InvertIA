@@ -2,7 +2,7 @@
 
 InvertIA es un gestor de portafolio inteligente enfocado en el mercado argentino. La aplicación combina un dashboard financiero con un asistente de IA capaz de analizar contexto, consultar información de mercado y ayudar a gestionar una cartera de inversiones de forma más rápida y clara.
 
-El proyecto fue creado para la hackathon global Zero to Agent de Vercel y está pensado como una base moderna para sumar automatización, contexto de usuario y herramientas conectadas a datos reales.
+InvertIA es un sistema avanzado de gestión de portafolios financieros diseñado para el mercado argentino, integrando inteligencia artificial para el análisis de activos y soporte en la toma de decisiones. Este proyecto aplica arquitecturas modernas de desarrollo web y procesamiento de lenguaje natural para ofrecer una experiencia profesional a inversores locales.
 
 ## Qué hace el proyecto
 
